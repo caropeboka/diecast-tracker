@@ -16,6 +16,7 @@ import DiecastController from '@/actions/App/Http/Controllers/DiecastController'
 import InputError from '@/components/input-error';
 import MatchList from '@/components/match-list';
 import MoneyInput from '@/components/money-input';
+import PriceCheckPanel from '@/components/price-check-panel';
 import TagInput from '@/components/tag-input';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -42,6 +43,7 @@ import type {
     DiecastStatus,
     DiecastSuggestions,
     Packaging,
+    PriceCheck,
     Rarity,
     ScanFields,
     ScanItemPrefill,
@@ -202,6 +204,7 @@ export default function DiecastForm({
     scanEnabled,
     scanItem,
     returnTo,
+    priceChecks = [],
 }: {
     diecast?: Diecast;
     status?: DiecastStatus;
@@ -209,6 +212,7 @@ export default function DiecastForm({
     scanEnabled: boolean;
     scanItem?: ScanItemPrefill | null;
     returnTo?: string;
+    priceChecks?: PriceCheck[];
 }) {
     const prefill = scanItem?.fields ? fieldsFromScan(scanItem.fields) : null;
 
@@ -249,6 +253,9 @@ export default function DiecastForm({
         () => prefill?.filled ?? new Set(),
     );
     const [dragging, setDragging] = useState(false);
+    const [priceSource, setPriceSource] = useState(
+        diecast?.market_value_source ?? null,
+    );
     const cameraInput = useRef<HTMLInputElement>(null);
     const galleryInput = useRef<HTMLInputElement>(null);
 
@@ -742,17 +749,27 @@ export default function DiecastForm({
                                 {field(
                                     'market_value',
                                     'Harga pasaran sekarang (per pcs)',
-                                    <MoneyInput
-                                        id="market_value"
-                                        placeholder="Opsional"
-                                        value={data.market_value}
-                                        onChange={(e) =>
-                                            update(
-                                                'market_value',
-                                                e.target.value,
-                                            )
-                                        }
-                                    />,
+                                    <>
+                                        <MoneyInput
+                                            id="market_value"
+                                            placeholder="Opsional"
+                                            value={data.market_value}
+                                            onChange={(e) => {
+                                                update(
+                                                    'market_value',
+                                                    e.target.value,
+                                                );
+                                                setPriceSource('manual');
+                                            }}
+                                        />
+                                        {data.market_value &&
+                                            priceSource === 'price_check' && (
+                                                <p className="text-xs text-muted-foreground">
+                                                    Dari cek harga screenshot
+                                                    marketplace
+                                                </p>
+                                            )}
+                                    </>,
                                 )}
                                 {textInput('purchase_date', 'Tanggal beli', {
                                     type: 'date',
@@ -800,6 +817,17 @@ export default function DiecastForm({
                         />,
                     )}
                 </section>
+
+                {diecast && (
+                    <PriceCheckPanel
+                        diecast={diecast}
+                        initialChecks={priceChecks}
+                        onApplied={(value) => {
+                            update('market_value', String(value));
+                            setPriceSource('price_check');
+                        }}
+                    />
+                )}
 
                 <datalist id="brand-options">
                     {brandOptions.map((brand) => (

@@ -29,6 +29,8 @@ use Illuminate\Support\Carbon;
  * @property int $quantity
  * @property string|null $purchase_price
  * @property string|null $market_value
+ * @property string|null $market_value_source manual|price_check
+ * @property Carbon|null $market_value_updated_at
  * @property string|null $target_price
  * @property Carbon|null $purchase_date
  * @property string|null $purchase_place
@@ -78,6 +80,7 @@ class Diecast extends Model
             'quantity' => 'integer',
             'purchase_price' => 'decimal:2',
             'market_value' => 'decimal:2',
+            'market_value_updated_at' => 'datetime',
             'target_price' => 'decimal:2',
             'purchase_date' => 'date:Y-m-d',
             'ai_scanned' => 'boolean',
@@ -106,6 +109,27 @@ class Diecast extends Model
     public function tags(): BelongsToMany
     {
         return $this->belongsToMany(Tag::class)->orderBy('name');
+    }
+
+    /**
+     * @return HasMany<PriceCheck, $this>
+     */
+    public function priceChecks(): HasMany
+    {
+        return $this->hasMany(PriceCheck::class)->latest('id');
+    }
+
+    /**
+     * Record that a market value was typed in by hand (vs. taken from a price check).
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (Diecast $diecast) {
+            if ($diecast->isDirty('market_value') && ! $diecast->isDirty('market_value_source')) {
+                $diecast->market_value_source = $diecast->market_value === null ? null : 'manual';
+                $diecast->market_value_updated_at = $diecast->market_value === null ? null : now();
+            }
+        });
     }
 
     /**

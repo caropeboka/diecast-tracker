@@ -12,35 +12,63 @@ class DashboardController extends Controller
     public function __invoke(Request $request): Response
     {
         $user = $request->user();
-        $owned = $user->diecasts()->setEagerLoads([])->where('status', 'owned');
-        $valued = (clone $owned)->whereNotNull('market_value');
+        $owned = fn () => $user->diecasts()->setEagerLoads([])->where('status', 'owned');
+        $valued = fn () => $owned()->whereNotNull('market_value');
+
+        $uniqueOwned = $owned()->count();
 
         return Inertia::render('dashboard', [
             'stats' => [
-                'total_items' => (int) (clone $owned)->sum('quantity'),
-                'unique_items' => (clone $owned)->count(),
-                'total_spent' => (float) (clone $owned)->sum(DB::raw('COALESCE(purchase_price, 0) * quantity')),
-                'total_value' => (float) (clone $valued)->sum(DB::raw('market_value * quantity')),
+                'total_items' => (int) $owned()->sum('quantity'),
+                'unique_items' => $uniqueOwned,
+                'total_spent' => (float) $owned()->sum(DB::raw('COALESCE(purchase_price, 0) * quantity')),
+                'priced_items' => $owned()->whereNotNull('purchase_price')->count(),
+                'total_value' => (float) $valued()->sum(DB::raw('market_value * quantity')),
+                'valued_items' => $valued()->count(),
                 // Only items with both prices count towards gain, so missing values don't look like losses.
-                'value_gain' => (float) (clone $valued)->whereNotNull('purchase_price')
-                    ->sum(DB::raw('(market_value - purchase_price) * quantity')),
-                'valued_items' => (clone $valued)->count(),
-                'treasure_hunts' => (int) (clone $owned)->whereIn('rarity', ['treasure_hunt', 'super_treasure_hunt'])->sum('quantity'),
-                'super_treasure_hunts' => (int) (clone $owned)->where('rarity', 'super_treasure_hunt')->sum('quantity'),
+                'value_gain' => (float) $valued()->whereNotNull('purchase_price')->sum(DB::raw('(market_value - purchase_price) * quantity')),
+                'gain_items' => $valued()->whereNotNull('purchase_price')->count(),
+                'special_items' => (int) $owned()->where('rarity', '!=', 'regular')->sum('quantity'),
+                'super_treasure_hunts' => (int) $owned()->where('rarity', 'super_treasure_hunt')->sum('quantity'),
                 'wishlist' => $user->diecasts()->setEagerLoads([])->where('status', 'wishlist')->count(),
+                'brands' => $owned()->whereNotNull('brand')->distinct()->count('brand'),
                 'pending_scans' => $user->scanItems()->where('source', 'bulk')->whereIn('status', ['pending', 'done', 'failed'])->count(),
             ],
-            'byBrand' => (clone $owned)
-                ->selectRaw("COALESCE(brand, 'Tanpa merek') as label, SUM(quantity) as total")
+            'completeness' => $uniqueOwned === 0 ? [] : [
+                ['key' => 'photo', 'label' => 'Foto', 'done' => $owned()->has('photos')->count()],
+                ['key' => 'purchase_price', 'label' => 'Harga beli', 'done' => $owned()->whereNotNull('purchase_price')->count()],
+                ['key' => 'market_value', 'label' => 'Harga pasaran', 'done' => $valued()->count()],
+                ['key' => 'storage_location', 'label' => 'Lokasi simpan', 'done' => $owned()->whereNotNull('storage_location')->count()],
+                ['key' => 'tags', 'label' => 'Tag', 'done' => $owned()->has('tags')->count()],
+            ],
+            'byBrand' => $owned()
+                ->selectRaw("COALESCE(brand, 'Tanpa merek') as label, SUM(quantity) as total, SUM(COALESCE(market_value, 0) * quantity) as value")
                 ->groupBy('label')
+                ->orderByDesc('total')
+                ->get(),
+            'byMake' => $owned()
+                ->whereNotNull('make')
+                ->selectRaw('make as label, SUM(quantity) as total')
+                ->groupBy('make')
                 ->orderByDesc('total')
                 ->limit(8)
                 ->get(),
-            'byScale' => (clone $owned)
+            'byRarity' => $owned()
+                ->selectRaw('rarity as label, SUM(quantity) as total')
+                ->groupBy('rarity')
+                ->get(),
+            'byYear' => $owned()
+                ->selectRaw('year as label, SUM(quantity) as total')
+                ->groupBy('year')
+                ->orderBy('year')
+                ->get(),
+            'byScale' => $owned()
                 ->selectRaw("COALESCE(scale, '?') as label, SUM(quantity) as total")
                 ->groupBy('label')
                 ->orderByDesc('total')
                 ->get(),
+            'mostValuable' => $user->diecasts()->where('status', 'owned')->whereNotNull('market_value')
+                ->orderByDesc('market_value')->limit(5)->get(),
             'topGainers' => $user->diecasts()
                 ->where('status', 'owned')
                 ->whereNotNull('market_value')
@@ -49,11 +77,15 @@ class DashboardController extends Controller
                 ->orderByRaw('(market_value - purchase_price) DESC')
                 ->limit(5)
                 ->get(),
-            'wishlist' => $user->diecasts()
-                ->where('status', 'wishlist')
-                ->latest()
-                ->limit(5)
+            'showcase' => $user->diecasts()
+                ->where('status', '!=', 'wishlist')
+                ->has('photos')
+                ->orderByRaw('market_value IS NULL')
+                ->orderByDesc('market_value')
+                ->latest('id')
+                ->limit(6)
                 ->get(),
+            'wishlist' => $user->diecasts()->where('status', 'wishlist')->latest()->limit(5)->get(),
             'recent' => $user->diecasts()->where('status', '!=', 'wishlist')->latest()->limit(6)->get(),
         ]);
     }

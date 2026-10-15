@@ -47,7 +47,10 @@ class DiecastWriter
 
     public function delete(Diecast $diecast): void
     {
-        $paths = $diecast->photos->pluck('path')->all();
+        $paths = [
+            ...$diecast->photos->pluck('path'),
+            ...$diecast->priceChecks()->pluck('screenshots')->flatten(),
+        ];
         $user = $diecast->user;
 
         $diecast->delete();

@@ -22,16 +22,21 @@ class PhotoStorage
 
     public const DIR = 'diecasts';
 
+    /** Marketplace screenshots for price checks — kept larger so small price text stays readable. */
+    public const PRICE_CHECK_DIR = 'price-checks';
+
     private const MAX_EDGE = 1600;
+
+    public const SCREENSHOT_MAX_EDGE = 2400;
 
     /**
      * Store an upload (normalized to JPEG) and return its path on the public disk.
      */
-    public function store(UploadedFile $file, string $dir = self::TMP_DIR): string
+    public function store(UploadedFile $file, string $dir = self::TMP_DIR, int $maxEdge = self::MAX_EDGE): string
     {
         $source = $this->load($file);
         $source = $this->orient($source, $file);
-        $image = $this->resize($source);
+        $image = $this->resize($source, $maxEdge);
 
         ob_start();
         imagejpeg($image, null, 85);
@@ -144,11 +149,11 @@ class PhotoStorage
         return $rotated ?: $image;
     }
 
-    private function resize(\GdImage $image): \GdImage
+    private function resize(\GdImage $image, int $maxEdge): \GdImage
     {
         $width = imagesx($image);
         $height = imagesy($image);
-        $scale = min(1, self::MAX_EDGE / max($width, $height));
+        $scale = min(1, $maxEdge / max($width, $height));
 
         $newWidth = (int) round($width * $scale);
         $newHeight = (int) round($height * $scale);

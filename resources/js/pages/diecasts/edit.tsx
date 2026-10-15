@@ -2,16 +2,22 @@ import { Head } from '@inertiajs/react';
 import DiecastController from '@/actions/App/Http/Controllers/DiecastController';
 import DiecastForm from '@/components/diecast-form';
 import Heading from '@/components/heading';
-import type { Diecast, DiecastSuggestions } from '@/types/diecast';
+import type {
+    Diecast,
+    DiecastSuggestions,
+    PriceCheck,
+} from '@/types/diecast';
 
 export default function EditDiecast({
     diecast,
     suggestions,
     scanEnabled,
+    priceChecks,
 }: {
     diecast: Diecast;
     suggestions: DiecastSuggestions;
     scanEnabled: boolean;
+    priceChecks: PriceCheck[];
 }) {
     return (
         <>
@@ -28,6 +34,7 @@ export default function EditDiecast({
                     diecast={diecast}
                     suggestions={suggestions}
                     scanEnabled={scanEnabled}
+                    priceChecks={priceChecks}
                 />
             </div>
         </>

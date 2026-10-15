@@ -8,6 +8,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Sleep;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -20,6 +21,7 @@ class ScanQueueTest extends TestCase
         parent::setUp();
 
         Storage::fake('public');
+        Sleep::fake();
         config(['services.scan.provider' => 'gemini', 'services.gemini.key' => 'test-key']);
     }
 
@@ -79,7 +81,7 @@ class ScanQueueTest extends TestCase
 
     public function test_failed_scan_can_be_completed_by_hand_from_the_form()
     {
-        Http::fake(['generativelanguage.googleapis.com/*' => Http::response([], 500)]);
+        Http::fake(['generativelanguage.googleapis.com/*' => Http::response([], 400)]);
         $user = User::factory()->create();
         $item = $user->scanItems()->create(['photo_path' => $this->inboxPhoto()]);
 

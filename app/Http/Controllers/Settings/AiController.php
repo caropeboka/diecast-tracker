@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
 use App\Models\AppSetting;
-use App\Services\DiecastScanner;
+use App\Services\AiVision;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -17,7 +17,7 @@ class AiController extends Controller
 {
     private const PROVIDERS = ['gemini', 'anthropic'];
 
-    public function __construct(private DiecastScanner $scanner) {}
+    public function __construct(private AiVision $ai) {}
 
     /**
      * Show the AI scan settings page.
@@ -32,14 +32,14 @@ class AiController extends Controller
             $key = $saved ?? $env;
 
             $providers[$provider] = [
-                'model' => $this->scanner->model($provider),
+                'model' => $this->ai->model($provider),
                 'key_hint' => $key ? '••••'.substr($key, -4) : null,
                 'key_source' => $saved ? 'settings' : ($env ? 'env' : null),
             ];
         }
 
         return Inertia::render('settings/ai', [
-            'provider' => $this->scanner->provider(),
+            'provider' => $this->ai->provider(),
             'providers' => $providers,
         ]);
     }
@@ -89,14 +89,14 @@ class AiController extends Controller
             'api_key' => ['nullable', 'string', 'max:500'],
         ]);
 
-        $key = filled($data['api_key'] ?? null) ? trim($data['api_key']) : $this->scanner->key($data['provider']);
+        $key = filled($data['api_key'] ?? null) ? trim($data['api_key']) : $this->ai->key($data['provider']);
 
         if (blank($key)) {
             return response()->json(['message' => 'Isi API key dulu.'], 422);
         }
 
         try {
-            return response()->json(['models' => $this->scanner->availableModels($data['provider'], $key)]);
+            return response()->json(['models' => $this->ai->availableModels($data['provider'], $key)]);
         } catch (RuntimeException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         }

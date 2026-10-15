@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Exceptions\ScanQuotaException;
+use App\Exceptions\ScanRetryLaterException;
 use App\Http\Requests\DiecastRequest;
 use App\Models\Diecast;
 use App\Models\ScanItem;
@@ -83,9 +83,9 @@ class BulkScanController extends Controller
 
             try {
                 $item->update(['status' => 'done', 'fields' => $this->scanner->scan([$item->photo_path]), 'error' => null]);
-            } catch (ScanQuotaException $e) {
+            } catch (ScanRetryLaterException $e) {
                 // Leave it pending; the page waits and retries.
-                return response()->json(['message' => $e->getMessage(), 'retry_after' => 60], 429);
+                return response()->json(['message' => $e->getMessage(), 'retry_after' => $e->retryAfter], 429);
             } catch (RuntimeException $e) {
                 $item->update(['status' => 'failed', 'error' => $e->getMessage()]);
             }

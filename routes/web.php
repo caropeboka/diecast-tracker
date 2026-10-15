@@ -4,6 +4,7 @@ use App\Http\Controllers\BulkScanController;
 use App\Http\Controllers\CheckController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DiecastController;
+use App\Http\Controllers\PriceCheckController;
 use Illuminate\Support\Facades\Route;
 
 Route::inertia('/', 'welcome')->name('home');
@@ -30,6 +31,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('scan/check', [CheckController::class, 'index'])->name('check.index');
     Route::post('scan/check', [CheckController::class, 'check'])->middleware('throttle:30,1')->name('check.store');
     Route::post('scan/check/{diecast}/quick', [CheckController::class, 'quick'])->name('check.quick');
+
+    // Market price from marketplace screenshots
+    Route::post('diecasts/{diecast}/price-checks', [PriceCheckController::class, 'store'])
+        ->middleware('throttle:20,1')
+        ->name('price-checks.store');
+    Route::post('price-checks/{check}/apply', [PriceCheckController::class, 'apply'])->name('price-checks.apply');
+    Route::delete('price-checks/{check}', [PriceCheckController::class, 'destroy'])->name('price-checks.destroy');
 
     Route::resource('diecasts', DiecastController::class)->except('show');
 });

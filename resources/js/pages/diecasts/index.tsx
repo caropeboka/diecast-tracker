@@ -1,5 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { Camera, ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import { Camera, ChevronLeft, ChevronRight, Search, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import DiecastController from '@/actions/App/Http/Controllers/DiecastController';
 import DiecastCard from '@/components/diecast-card';
@@ -22,7 +22,17 @@ type Filters = {
     status?: string;
     rarity?: string;
     tag?: string;
+    missing?: string;
     sort?: string;
+};
+
+/** "Lengkapi" filters linked from the dashboard's data-completeness card. */
+const MISSING_LABELS: Record<string, string> = {
+    photo: 'Belum ada foto',
+    purchase_price: 'Belum ada harga beli',
+    market_value: 'Belum ada harga pasaran',
+    storage_location: 'Belum ada lokasi simpan',
+    tags: 'Belum ada tag',
 };
 
 const SORTS = {
@@ -106,7 +116,8 @@ export default function DiecastIndex({
             filters.brand ||
             filters.status ||
             filters.rarity ||
-            filters.tag,
+            filters.tag ||
+            filters.missing,
     );
 
     return (
@@ -124,6 +135,22 @@ export default function DiecastIndex({
                         </Link>
                     </Button>
                 </div>
+
+                {filters.missing && MISSING_LABELS[filters.missing] && (
+                    <div className="flex items-center gap-2 text-sm">
+                        <span className="text-muted-foreground">
+                            Menampilkan:
+                        </span>
+                        <button
+                            type="button"
+                            onClick={() => apply({ missing: undefined })}
+                            className="inline-flex items-center gap-1 rounded-full border bg-muted px-3 py-1 hover:bg-muted/70"
+                        >
+                            {MISSING_LABELS[filters.missing]}
+                            <X className="size-3.5" aria-label="Hapus filter" />
+                        </button>
+                    </div>
+                )}
 
                 <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                     <div className="relative flex-1 sm:min-w-64">

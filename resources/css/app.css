@@ -51,6 +51,18 @@
     --color-chart-4: var(--chart-4);
     --color-chart-5: var(--chart-5);
 
+    /* Data-viz roles (validated palette, light + dark steps below) */
+    --color-viz-bar: var(--viz-bar);
+    --color-viz-track: var(--viz-track);
+    --color-viz-muted: var(--viz-muted);
+    --color-viz-up: var(--viz-up);
+    --color-viz-down: var(--viz-down);
+    --color-viz-th: var(--viz-th);
+    --color-viz-sth: var(--viz-sth);
+    --color-viz-chase: var(--viz-chase);
+    --color-viz-exclusive: var(--viz-exclusive);
+    --color-viz-limited: var(--viz-limited);
+
     --color-sidebar: var(--sidebar);
     --color-sidebar-foreground: var(--sidebar-foreground);
     --color-sidebar-primary: var(--sidebar-primary);
@@ -95,6 +107,20 @@
     --sidebar-accent-foreground: oklch(0.205 0 0);
     --sidebar-border: oklch(0.922 0 0);
     --sidebar-ring: oklch(0.87 0 0);
+
+    /* Single-series bars + meter track (same blue ramp) */
+    --viz-bar: #2a78d6;
+    --viz-track: #cde2fb;
+    --viz-muted: #c3c2b7;
+    /* Delta text: gain / loss */
+    --viz-up: #006300;
+    --viz-down: #d03b3b;
+    /* Rarity identity — order TH, STH, chase, exclusive, limited passes the CVD checks */
+    --viz-th: #1baf7a;
+    --viz-sth: #eb6834;
+    --viz-chase: #6250d6;
+    --viz-exclusive: #e87ba4;
+    --viz-limited: #2a78d6;
 }
 
 .dark {
@@ -130,6 +156,18 @@
     --sidebar-accent-foreground: oklch(0.985 0 0);
     --sidebar-border: oklch(0.269 0 0);
     --sidebar-ring: oklch(0.439 0 0);
+
+    --viz-bar: #3987e5;
+    /* Recessive: the blue at ~20% over the dark surface, so an empty meter never reads as filled */
+    --viz-track: #15263b;
+    --viz-muted: #4a4a46;
+    --viz-up: #0ca30c;
+    --viz-down: #e66767;
+    --viz-th: #199e70;
+    --viz-sth: #d95926;
+    --viz-chase: #9085e9;
+    --viz-exclusive: #d55181;
+    --viz-limited: #3987e5;
 }
 
 @layer base {

@@ -4,7 +4,7 @@ namespace Tests\Feature\Settings;
 
 use App\Models\AppSetting;
 use App\Models\User;
-use App\Services\DiecastScanner;
+use App\Services\AiVision;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -37,7 +37,7 @@ class AiSettingsTest extends TestCase
             ])
             ->assertRedirect(route('ai.edit'));
 
-        $scanner = app(DiecastScanner::class);
+        $scanner = app(AiVision::class);
         $this->assertSame('anthropic', $scanner->provider());
         $this->assertSame('AIza-secret-1234', $scanner->key('gemini'));
 

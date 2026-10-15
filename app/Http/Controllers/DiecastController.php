@@ -29,7 +29,7 @@ class DiecastController extends Controller
      */
     public function index(Request $request): Response
     {
-        $filters = $request->only(['search', 'brand', 'status', 'rarity', 'tag', 'sort']);
+        $filters = $request->only(['search', 'brand', 'status', 'rarity', 'tag', 'missing', 'sort']);
         $diecasts = $request->user()->diecasts();
 
         $diecasts
@@ -45,7 +45,14 @@ class DiecastController extends Controller
             ->when($filters['brand'] ?? null, fn (Builder $query, string $brand) => $query->where('brand', $brand))
             ->when($filters['status'] ?? null, fn (Builder $query, string $status) => $query->where('status', $status))
             ->when($filters['rarity'] ?? null, fn (Builder $query, string $rarity) => $query->where('rarity', $rarity))
-            ->when($filters['tag'] ?? null, fn (Builder $query, string $tag) => $query->whereHas('tags', fn (Builder $tags) => $tags->where('name', $tag)));
+            ->when($filters['tag'] ?? null, fn (Builder $query, string $tag) => $query->whereHas('tags', fn (Builder $tags) => $tags->where('name', $tag)))
+            // "Lengkapi" links from the dashboard: diecasts still missing a piece of data.
+            ->when($filters['missing'] ?? null, fn (Builder $query, string $missing) => match ($missing) {
+                'photo' => $query->where('status', 'owned')->doesntHave('photos'),
+                'tags' => $query->where('status', 'owned')->doesntHave('tags'),
+                'purchase_price', 'market_value', 'storage_location' => $query->where('status', 'owned')->whereNull($missing),
+                default => $query,
+            });
 
         match ($filters['sort'] ?? 'newest') {
             'oldest' => $diecasts->oldest(),
@@ -117,6 +124,7 @@ class DiecastController extends Controller
         return Inertia::render('diecasts/edit', [
             ...$this->formOptions($request),
             'diecast' => $diecast->load('tags'),
+            'priceChecks' => $diecast->priceChecks()->limit(5)->get(),
         ]);
     }
 

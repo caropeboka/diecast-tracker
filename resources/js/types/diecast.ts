@@ -26,6 +26,8 @@ export type Diecast = {
     quantity: number;
     purchase_price: string | null;
     market_value: string | null;
+    market_value_source: 'manual' | 'price_check' | null;
+    market_value_updated_at: string | null;
     target_price: string | null;
     purchase_date: string | null;
     purchase_place: string | null;
@@ -39,6 +41,46 @@ export type Diecast = {
 };
 
 export type DiecastPhoto = { id: number; path: string; url: string };
+
+export type PriceListing = {
+    title: string;
+    price_idr: number;
+    is_price_range: boolean;
+    shop: string | null;
+    location: string | null;
+    sold: number | null;
+    rating: number | null;
+    is_ad: boolean;
+    marketplace: string;
+    match: string;
+    reason: string;
+    status: 'included' | 'outlier' | 'excluded';
+    excluded_reason: string | null;
+};
+
+export type PriceStats = {
+    count: number;
+    min: number;
+    q1: number;
+    median: number;
+    suggested: number;
+    q3: number;
+    max: number;
+    spread: number;
+};
+
+export type PriceCheck = {
+    id: number;
+    screenshot_urls: string[];
+    listings: PriceListing[];
+    stats: PriceStats | null;
+    accuracy: 'high' | 'medium' | 'low' | 'insufficient';
+    reasons: string[];
+    tips: string[];
+    ai_note: string | null;
+    applied_at: string | null;
+    created_at: string;
+};
 
 export type Tag = { id: number; name: string };
 
@@ -147,6 +189,20 @@ export const RARITY_STYLES: Record<Rarity, string> = {
     limited: 'border-transparent bg-sky-600 text-white',
     exclusive: 'border-transparent bg-rose-600 text-white',
 };
+
+/** Short form for tight spots: "Rp 54,5 rb", "Rp 1,2 jt". */
+export function formatRupiahCompact(value: number | string | null): string {
+    if (value === null || value === '') {
+        return '-';
+    }
+
+    return new Intl.NumberFormat('id-ID', {
+        style: 'currency',
+        currency: 'IDR',
+        notation: 'compact',
+        maximumFractionDigits: 1,
+    }).format(Number(value));
+}
 
 export function formatRupiah(value: number | string | null): string {
     if (value === null || value === '') {

@@ -7,6 +7,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Sleep;
 use Tests\TestCase;
 
 class DiecastTest extends TestCase
@@ -18,6 +19,7 @@ class DiecastTest extends TestCase
         parent::setUp();
 
         Storage::fake('public');
+        Sleep::fake();
         config(['services.anthropic.key' => null, 'services.gemini.key' => null, 'services.scan.provider' => 'gemini']);
     }
 
@@ -50,6 +52,25 @@ class DiecastTest extends TestCase
         $this->actingAs($user)
             ->get(route('diecasts.index', ['tag' => 'JDM']))
             ->assertInertia(fn ($page) => $page->has('diecasts.data', 2)->where('tags', ['Favorit', 'JDM']));
+    }
+
+    public function test_missing_data_filter_from_dashboard()
+    {
+        $user = User::factory()->create();
+        $user->diecasts()->create(['name' => 'Priced', 'purchase_price' => 30000]);
+        $user->diecasts()->create(['name' => 'No price']);
+        $user->diecasts()->create(['name' => 'Wishlist no price', 'status' => 'wishlist']);
+
+        $this->actingAs($user)
+            ->get(route('diecasts.index', ['missing' => 'purchase_price']))
+            ->assertInertia(fn ($page) => $page->has('diecasts.data', 1)->where('diecasts.data.0.name', 'No price'));
+
+        $this->actingAs($user)
+            ->get(route('dashboard'))
+            ->assertInertia(fn ($page) => $page
+                ->where('completeness.1.key', 'purchase_price')
+                ->where('completeness.1.done', 1)
+                ->etc());
     }
 
     public function test_photo_upload_is_resized_and_kept_temporary()
@@ -151,7 +172,8 @@ class DiecastTest extends TestCase
             ->assertJsonCount(1, 'matches')
             ->assertJsonPath('matches.0.name', 'Datsun 510');
 
-        Http::assertSent(fn ($request) => $request->hasHeader('x-goog-api-key', 'test-key')
+        Http::assertSent(fn ($request) => str_contains($request->url(), ':generateContent')
+            && $request->hasHeader('x-goog-api-key', 'test-key')
             && count($request['contents'][0]['parts']) === 3
             && str_contains($request['contents'][0]['parts'][2]['text'], 'These 2 photos'));
     }
@@ -175,6 +197,75 @@ class DiecastTest extends TestCase
             ->postJson(route('diecasts.scan'), ['photos' => [$this->upload($user)]])
             ->assertOk()
             ->assertJsonPath('error', 'Kuota gratis Gemini habis untuk saat ini. Tunggu sebentar (atau besok) lalu coba lagi.');
+    }
+
+    public function test_busy_gemini_model_falls_back_to_the_next_one()
+    {
+        config(['services.gemini.key' => 'test-key', 'services.gemini.model' => 'gemini-3.8-flash']);
+        Http::preventStrayRequests();
+        $busy = Http::response(['error' => ['code' => 503, 'status' => 'UNAVAILABLE']], 503);
+        Http::fake([
+            '*/v1beta/models?*' => Http::response(['models' => collect([
+                'gemini-3.5-flash-lite', 'gemini-2.5-flash', 'gemini-3.8-flash', 'gemini-3.6-flash',
+                'gemini-3.7-flash', 'gemini-3.1-flash-image', 'gemini-3-flash-preview',
+            ])->map(fn ($name) => ['name' => "models/{$name}", 'supportedGenerationMethods' => ['generateContent']])->all()]),
+            '*/models/gemini-3.8-flash:generateContent' => $busy,
+            '*/models/gemini-3.5-flash-lite:generateContent' => $busy,
+            '*/models/gemini-flash-lite-latest:generateContent' => Http::failedConnection(),
+            '*/models/gemini-3.7-flash:generateContent' => $busy,
+            '*/models/gemini-3.6-flash:generateContent' => Http::response([
+                'candidates' => [['content' => ['parts' => [['text' => json_encode([
+                    'name' => 'Mazda RX-7', 'brand' => 'Tomica', 'make' => null, 'series' => null, 'collection_number' => null,
+                    'year' => null, 'scale' => null, 'color' => null, 'rarity' => 'regular', 'packaging' => 'boxed',
+                    'condition' => null, 'notes' => null, 'confidence' => 'high',
+                ])]]]]],
+            ]),
+        ]);
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->postJson(route('diecasts.scan'), ['photos' => [$this->upload($user)]])
+            ->assertJsonPath('error', null)
+            ->assertJsonPath('fields.name', 'Mazda RX-7');
+
+        // Model list, chosen model (+ one quick retry), then lite models first (busy, timed out),
+        // then the newest regular flash models — fallbacks get no retry.
+        $this->assertSame(
+            [
+                'models', 'gemini-3.8-flash', 'gemini-3.8-flash', 'gemini-3.5-flash-lite',
+                'gemini-flash-lite-latest', 'gemini-3.7-flash', 'gemini-3.6-flash',
+            ],
+            Http::recorded()->map(fn ($pair) => str($pair[0]->url())->after('/v1beta/models')->ltrim('/')->before(':')->before('?')->whenEmpty(fn () => str('models'))->value())->all(),
+        );
+    }
+
+    public function test_reports_busy_rather_than_a_retired_fallback()
+    {
+        config(['services.gemini.key' => 'test-key', 'services.gemini.model' => 'gemini-3.8-flash']);
+        Http::fake([
+            '*/v1beta/models?*' => Http::response(['models' => [
+                ['name' => 'models/gemini-2.5-flash', 'supportedGenerationMethods' => ['generateContent']],
+            ]]),
+            '*/models/gemini-3.8-flash:generateContent' => Http::response([], 503),
+            '*' => Http::response(['error' => ['message' => 'no longer available to new users']], 404),
+        ]);
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->postJson(route('diecasts.scan'), ['photos' => [$this->upload($user)]])
+            ->assertJsonPath('error', 'Server Gemini sedang sibuk (banyak pengguna). Coba lagi sebentar lagi.');
+    }
+
+    public function test_all_gemini_models_busy_says_try_again_later()
+    {
+        config(['services.gemini.key' => 'test-key']);
+        Http::fake(['generativelanguage.googleapis.com/*' => Http::response(['error' => ['code' => 503]], 503)]);
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->postJson(route('diecasts.scan'), ['photos' => [$this->upload($user)]])
+            ->assertJsonPath('fields', null)
+            ->assertJsonPath('error', 'Server Gemini sedang sibuk (banyak pengguna). Coba lagi sebentar lagi.');
     }
 
     public function test_users_cannot_touch_other_users_diecasts()
