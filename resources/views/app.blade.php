@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" @class(['dark' => ($appearance ?? 'system') == 'dark'])>
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" data-style="{{ $style ?? 'garage' }}" @class(['dark' => ($appearance ?? 'dark') == 'dark'])>
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -7,7 +7,7 @@
         {{-- Inline script to detect system dark mode preference and apply it immediately --}}
         <script>
             (function() {
-                const appearance = '{{ $appearance ?? "system" }}';
+                const appearance = '{{ $appearance ?? "dark" }}';
 
                 if (appearance === 'system') {
                     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -26,7 +26,15 @@
             }
 
             html.dark {
-                background-color: oklch(0.145 0 0);
+                background-color: #0b0b0d;
+            }
+
+            html.dark[data-style="showroom"] {
+                background-color: #070b18;
+            }
+
+            html.dark[data-style="neon"] {
+                background-color: #060608;
             }
         </style>
 

@@ -97,7 +97,7 @@ export default function DiecastIndex({
             value={filters[key] ?? ALL}
             onValueChange={(value) => apply({ [key]: value })}
         >
-            <SelectTrigger className="w-full sm:w-40">
+            <SelectTrigger className="w-full sm:w-auto sm:min-w-44">
                 <SelectValue placeholder={placeholder} />
             </SelectTrigger>
             <SelectContent>
@@ -167,7 +167,7 @@ export default function DiecastIndex({
                         'Semua merek',
                         Object.fromEntries(brands.map((b) => [b, b])),
                     )}
-                    {filterSelect('status', 'Semua status', STATUS_LABELS)}
+                    {filterSelect('status', 'Semua kecuali ditemui', STATUS_LABELS)}
                     {filterSelect('rarity', 'Semua kelangkaan', RARITY_LABELS)}
                     {tags.length > 0 &&
                         filterSelect(
@@ -179,7 +179,7 @@ export default function DiecastIndex({
                         value={filters.sort ?? 'newest'}
                         onValueChange={(sort) => apply({ sort })}
                     >
-                        <SelectTrigger className="w-full sm:w-40">
+                        <SelectTrigger className="w-full sm:w-auto sm:min-w-44">
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>

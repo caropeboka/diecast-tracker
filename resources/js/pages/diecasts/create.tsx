@@ -26,11 +26,7 @@ export default function CreateDiecast({
             <Head title="Tambah diecast" />
             <div className="p-4 md:p-6">
                 <Heading
-                    title={
-                        status === 'wishlist'
-                            ? 'Tambah ke wishlist'
-                            : 'Tambah diecast'
-                    }
+                    title="Tambah diecast"
                     description={
                         scanItem
                             ? 'Data dari hasil scan. Periksa, lengkapi, lalu simpan.'

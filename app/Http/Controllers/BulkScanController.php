@@ -10,6 +10,7 @@ use App\Services\CollectionMatcher;
 use App\Services\DiecastScanner;
 use App\Services\DiecastWriter;
 use App\Services\PhotoStorage;
+use App\Services\SightingLog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -41,7 +42,7 @@ class BulkScanController extends Controller
                 ->get()
                 ->map(fn (ScanItem $item) => $this->present($request, $item)),
             'suggestions' => [
-                'purchase_place' => $this->distinct($request, 'purchase_place'),
+                'purchase_place' => $user->knownPlaces(),
                 'storage_location' => $this->distinct($request, 'storage_location'),
                 'tags' => $user->tags()->orderBy('name')->pluck('name'),
             ],
@@ -97,7 +98,7 @@ class BulkScanController extends Controller
     /**
      * Save a reviewed item to the collection, with the user's quick edits and shared defaults.
      */
-    public function save(Request $request, ScanItem $item, DiecastWriter $writer): JsonResponse
+    public function save(Request $request, ScanItem $item, DiecastWriter $writer, SightingLog $sightings): JsonResponse
     {
         $this->authorizeItem($request, $item);
         abort_if($item->status === 'saved', 422, 'Sudah disimpan.');
@@ -117,13 +118,27 @@ class BulkScanController extends Controller
             (new DiecastRequest)->attributes(),
         )->validate();
 
-        $diecast = $writer->save(
-            $request->user(),
-            null,
-            collect($data)->only((new Diecast)->getFillable())->all(),
-            [$item->photo_path],
-            $data['tags'] ?? [],
-        );
+        $attributes = collect($data)->only((new Diecast)->getFillable());
+
+        // Spotted, not bought: the shared "place / date / price" defaults describe where it was seen.
+        if ($data['status'] === 'spotted') {
+            $sighting = [
+                'place' => $data['purchase_place'] ?? null,
+                'latitude' => $data['purchase_latitude'] ?? null,
+                'longitude' => $data['purchase_longitude'] ?? null,
+                'seen_on' => $data['purchase_date'] ?? null,
+                'price' => $data['purchase_price'] ?? null,
+            ];
+            $attributes = $attributes->except([
+                'purchase_place', 'purchase_latitude', 'purchase_longitude', 'purchase_date', 'purchase_price', 'storage_location',
+            ]);
+        }
+
+        $diecast = $writer->save($request->user(), null, $attributes->all(), [$item->photo_path], $data['tags'] ?? []);
+
+        if (isset($sighting)) {
+            $sightings->record($diecast, $sighting);
+        }
 
         $item->update(['status' => 'saved', 'diecast_id' => $diecast->id]);
 

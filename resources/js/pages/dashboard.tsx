@@ -52,6 +52,7 @@ type Stats = {
     special_items: number;
     super_treasure_hunts: number;
     wishlist: number;
+    spotted: number;
     brands: number;
     pending_scans: number;
 };
@@ -236,7 +237,7 @@ export default function Dashboard({
                         <p className="text-sm text-muted-foreground">
                             {greeting()}, {auth.user.name.split(' ')[0]} 👋
                         </p>
-                        <h1 className="text-2xl font-semibold tracking-tight">
+                        <h1 className="font-heading text-3xl font-semibold md:text-4xl">
                             Garasi kamu
                         </h1>
                     </div>
@@ -257,9 +258,9 @@ export default function Dashboard({
                 {stats.pending_scans > 0 && (
                     <Link
                         href={BulkScanController.index()}
-                        className="flex items-center gap-3 rounded-xl border border-amber-400/50 bg-amber-50 p-3 text-sm hover:bg-amber-100 dark:bg-amber-500/10 dark:hover:bg-amber-500/20"
+                        className="flex items-center gap-3 rounded-xl border border-brand/40 bg-brand/10 p-3 text-sm transition hover:bg-brand/15"
                     >
-                        <Images className="size-4 shrink-0 text-amber-600" />
+                        <Images className="size-4 shrink-0 text-brand" />
                         <span>
                             <strong>{stats.pending_scans} foto</strong> di
                             antrian scan massal belum disimpan.
@@ -273,9 +274,10 @@ export default function Dashboard({
                 ) : (
                     <>
                         {/* Hero: collection value + showcase */}
-                        <section className="grid grid-cols-1 overflow-hidden rounded-2xl border border-sidebar-border/70 bg-card lg:grid-cols-[1.5fr_1fr] dark:border-sidebar-border">
+                        <section className="surface aura grid grid-cols-1 overflow-hidden rounded-2xl lg:grid-cols-[1.5fr_1fr]">
                             <div className="flex flex-col justify-center gap-3 p-6 md:p-8">
-                                <p className="text-sm font-medium text-muted-foreground">
+                                <p className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                                    <span className="h-4 w-1 rounded-full bg-brand-gradient" />
                                     Nilai koleksi
                                 </p>
                                 <p className="text-5xl font-semibold tracking-tight md:text-6xl">
@@ -442,9 +444,11 @@ export default function Dashboard({
                                 label="Wishlist"
                                 value={stats.wishlist}
                                 hint={
-                                    stats.wishlist
-                                        ? 'diecast sedang diburu'
-                                        : 'Tambahkan diecast buruanmu'
+                                    stats.spotted
+                                        ? `diburu · ${stats.spotted} pernah ditemui`
+                                        : stats.wishlist
+                                          ? 'diecast sedang diburu'
+                                          : 'Tambahkan diecast buruanmu'
                                 }
                                 href={
                                     DiecastController.index({
@@ -767,7 +771,7 @@ export default function Dashboard({
                         {/* Recent */}
                         <section className="space-y-3">
                             <div className="flex items-center justify-between">
-                                <h3 className="flex items-center gap-2 font-medium">
+                                <h3 className="flex items-center gap-2 font-heading text-base font-semibold [&>svg]:text-brand">
                                     <Layers className="size-4" /> Baru
                                     ditambahkan
                                 </h3>

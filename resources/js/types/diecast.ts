@@ -7,7 +7,18 @@ export type Rarity =
     | 'exclusive';
 export type Packaging = 'carded' | 'boxed' | 'loose';
 export type Condition = 'mint' | 'near_mint' | 'good' | 'fair' | 'damaged';
-export type DiecastStatus = 'owned' | 'wishlist' | 'sold';
+/** spotted = "Ditemui": seen somewhere but not owned. */
+export type DiecastStatus = 'owned' | 'wishlist' | 'spotted' | 'sold';
+
+export type Sighting = {
+    id: number;
+    place: string | null;
+    seen_on: string;
+    price: string | null;
+    notes: string | null;
+    photo_url: string | null;
+    created_at: string;
+};
 
 export type Diecast = {
     id: number;
@@ -31,11 +42,16 @@ export type Diecast = {
     target_price: string | null;
     purchase_date: string | null;
     purchase_place: string | null;
+    purchase_latitude: number | null;
+    purchase_longitude: number | null;
     storage_location: string | null;
     notes: string | null;
     photo_url: string | null;
     photos: DiecastPhoto[];
     tags?: Tag[];
+    sightings?: Sighting[];
+    sightings_count?: number;
+    sightings_min_price?: string | null;
     ai_scanned: boolean;
     created_at: string;
 };
@@ -173,6 +189,7 @@ export const CONDITION_LABELS: Record<Condition, string> = {
 export const STATUS_LABELS: Record<DiecastStatus, string> = {
     owned: 'Dimiliki',
     wishlist: 'Wishlist',
+    spotted: 'Ditemui',
     sold: 'Terjual',
 };
 

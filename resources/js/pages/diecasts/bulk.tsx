@@ -18,8 +18,11 @@ import { toast } from 'sonner';
 import BulkScanController from '@/actions/App/Http/Controllers/BulkScanController';
 import DiecastController from '@/actions/App/Http/Controllers/DiecastController';
 import Heading from '@/components/heading';
+import LocationField, { recentSavedPlace } from '@/components/location-field';
+import type { PlaceValue } from '@/components/location-field';
 import MatchList from '@/components/match-list';
 import MoneyInput from '@/components/money-input';
+import StatusToggle from '@/components/status-toggle';
 import TagInput from '@/components/tag-input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -49,7 +52,7 @@ type Edits = {
 };
 
 type Defaults = {
-    status: 'owned' | 'wishlist';
+    status: 'owned' | 'wishlist' | 'spotted';
     purchase_date: string;
     purchase_place: string;
     storage_location: string;
@@ -84,13 +87,18 @@ export default function BulkScan({
 }) {
     const [items, setItems] = useState(initialItems);
     const [edits, setEdits] = useState<Record<number, Edits>>({});
+    // Still at the store you just checked in Cek koleksi? Start from that place and its GPS point.
+    const [savedPlace] = useState(recentSavedPlace);
     const [defaults, setDefaults] = useState<Defaults>({
         status: 'owned',
         purchase_date: new Date().toISOString().slice(0, 10),
-        purchase_place: '',
+        purchase_place: savedPlace?.name ?? '',
         storage_location: '',
         tags: [],
     });
+    const [placeGeo, setPlaceGeo] = useState<Omit<PlaceValue, 'name'>>(
+        savedPlace ?? {},
+    );
     const [upload, setUpload] = useState<{ done: number; total: number }>();
     const [paused, setPaused] = useState(!scanEnabled);
     const [waitUntil, setWaitUntil] = useState<number | null>(null);
@@ -106,7 +114,9 @@ export default function BulkScan({
     const safe = items.filter(isSafe);
 
     function replace(item: ScanItem) {
-        setItems((current) => current.map((i) => (i.id === item.id ? item : i)));
+        setItems((current) =>
+            current.map((i) => (i.id === item.id ? item : i)),
+        );
     }
 
     function remove(id: number) {
@@ -228,14 +238,20 @@ export default function BulkScan({
         setBusy(item.id, true);
 
         try {
+            const wishlist = defaults.status === 'wishlist';
+
             await postJson(BulkScanController.save.url(item.id), {
                 ...defaults,
-                purchase_date:
-                    defaults.status === 'wishlist'
-                        ? null
-                        : defaults.purchase_date || null,
+                purchase_date: wishlist
+                    ? null
+                    : defaults.purchase_date || null,
+                purchase_latitude: wishlist ? null : (placeGeo.lat ?? null),
+                purchase_longitude: wishlist ? null : (placeGeo.lng ?? null),
                 ...Object.fromEntries(
-                    Object.entries(edit).map(([k, v]) => [k, v === '' ? null : v]),
+                    Object.entries(edit).map(([k, v]) => [
+                        k,
+                        v === '' ? null : v,
+                    ]),
                 ),
             });
             remove(item.id);
@@ -256,7 +272,10 @@ export default function BulkScan({
         setBusy(item.id, true);
 
         try {
-            await requestJson('DELETE', BulkScanController.destroy.url(item.id));
+            await requestJson(
+                'DELETE',
+                BulkScanController.destroy.url(item.id),
+            );
             remove(item.id);
         } catch (error) {
             toast.error(errorMessage(error));
@@ -315,8 +334,8 @@ export default function BulkScan({
                     <div className="flex-1">
                         <p className="font-medium">Tambah foto ke antrian</p>
                         <p className="text-sm text-muted-foreground">
-                            Satu foto = satu diecast. Foto depan kartunya
-                            dengan cahaya terang.
+                            Satu foto = satu diecast. Foto depan kartunya dengan
+                            cahaya terang.
                         </p>
                         {upload && (
                             <p className="mt-2 flex items-center gap-2 text-sm">
@@ -372,7 +391,11 @@ export default function BulkScan({
                                 <strong>{pending.length}</strong> menunggu AI ·{' '}
                                 <strong>{done.length}</strong> siap dicek ·{' '}
                                 <strong>
-                                    {items.filter((i) => i.status === 'failed').length}
+                                    {
+                                        items.filter(
+                                            (i) => i.status === 'failed',
+                                        ).length
+                                    }
                                 </strong>{' '}
                                 gagal
                             </span>
@@ -385,7 +408,10 @@ export default function BulkScan({
                             {waitUntil && (
                                 <span className="text-amber-600 dark:text-amber-400">
                                     Kuota AI penuh, lanjut otomatis dalam{' '}
-                                    {Math.max(0, Math.ceil((waitUntil - now) / 1000))}{' '}
+                                    {Math.max(
+                                        0,
+                                        Math.ceil((waitUntil - now) / 1000),
+                                    )}{' '}
                                     detik
                                 </span>
                             )}
@@ -419,36 +445,34 @@ export default function BulkScan({
                         {/* Shared defaults */}
                         <details className="rounded-xl border border-sidebar-border/70 p-4 dark:border-sidebar-border">
                             <summary className="cursor-pointer font-medium">
-                                Isian yang sama untuk semua (tanggal beli,
-                                toko, lokasi simpan, tag)
+                                Isian yang sama untuk semua (tanggal beli, toko,
+                                lokasi simpan, tag)
                             </summary>
                             <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                                <div className="grid gap-2">
+                                <div className="grid gap-2 sm:col-span-2">
                                     <Label>Simpan sebagai</Label>
-                                    <Select
+                                    <StatusToggle
+                                        compact
+                                        options={[
+                                            'owned',
+                                            'wishlist',
+                                            'spotted',
+                                        ]}
                                         value={defaults.status}
-                                        onValueChange={(v) =>
+                                        onChange={(status) =>
                                             setDefaults({
                                                 ...defaults,
-                                                status: v as Defaults['status'],
+                                                status: status as Defaults['status'],
                                             })
                                         }
-                                    >
-                                        <SelectTrigger className="w-full">
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="owned">
-                                                Dimiliki
-                                            </SelectItem>
-                                            <SelectItem value="wishlist">
-                                                Wishlist
-                                            </SelectItem>
-                                        </SelectContent>
-                                    </Select>
+                                    />
                                 </div>
                                 <div className="grid gap-2">
-                                    <Label htmlFor="d-date">Tanggal beli</Label>
+                                    <Label htmlFor="d-date">
+                                        {defaults.status === 'spotted'
+                                            ? 'Tanggal ditemui'
+                                            : 'Tanggal beli'}
+                                    </Label>
                                     <Input
                                         id="d-date"
                                         type="date"
@@ -462,23 +486,26 @@ export default function BulkScan({
                                     />
                                 </div>
                                 <div className="grid gap-2">
-                                    <Label htmlFor="d-place">Beli di</Label>
-                                    <Input
-                                        id="d-place"
-                                        list="d-place-options"
-                                        value={defaults.purchase_place}
-                                        onChange={(e) =>
+                                    <Label>
+                                        {defaults.status === 'spotted'
+                                            ? 'Ditemui di'
+                                            : 'Beli di'}
+                                    </Label>
+                                    <LocationField
+                                        value={{
+                                            name: defaults.purchase_place,
+                                            ...placeGeo,
+                                        }}
+                                        onChange={({ name, ...geo }) => {
                                             setDefaults({
                                                 ...defaults,
-                                                purchase_place: e.target.value,
-                                            })
-                                        }
+                                                purchase_place: name,
+                                            });
+                                            setPlaceGeo(geo);
+                                        }}
+                                        places={suggestions.purchase_place}
+                                        placeholder="Toko / marketplace / teman"
                                     />
-                                    <datalist id="d-place-options">
-                                        {suggestions.purchase_place.map((p) => (
-                                            <option key={p} value={p} />
-                                        ))}
-                                    </datalist>
                                 </div>
                                 <div className="grid gap-2">
                                     <Label htmlFor="d-storage">
@@ -491,7 +518,8 @@ export default function BulkScan({
                                         onChange={(e) =>
                                             setDefaults({
                                                 ...defaults,
-                                                storage_location: e.target.value,
+                                                storage_location:
+                                                    e.target.value,
                                             })
                                         }
                                     />
@@ -541,7 +569,8 @@ export default function BulkScan({
                                         <div className="min-w-0 flex-1 space-y-2">
                                             {item.status === 'pending' && (
                                                 <p className="flex items-center gap-2 text-sm text-muted-foreground">
-                                                    {processingId === item.id ? (
+                                                    {processingId ===
+                                                    item.id ? (
                                                         <>
                                                             <Loader2 className="size-4 animate-spin" />
                                                             AI sedang membaca…
@@ -566,7 +595,8 @@ export default function BulkScan({
                                                             }
                                                             disabled={busy}
                                                         >
-                                                            <RotateCw /> Coba lagi
+                                                            <RotateCw /> Coba
+                                                            lagi
                                                         </Button>
                                                         <Button
                                                             size="sm"
@@ -602,7 +632,9 @@ export default function BulkScan({
                                                                 )}
                                                             >
                                                                 <Sparkles />
-                                                                {confidence.label}
+                                                                {
+                                                                    confidence.label
+                                                                }
                                                             </Badge>
                                                         )}
                                                         {item.matches.length >
@@ -615,7 +647,10 @@ export default function BulkScan({
                                                     <Input
                                                         aria-label="Nama"
                                                         placeholder="Nama model"
-                                                        value={value(item, 'name')}
+                                                        value={value(
+                                                            item,
+                                                            'name',
+                                                        )}
                                                         onChange={(e) =>
                                                             edit(
                                                                 item,
@@ -629,12 +664,16 @@ export default function BulkScan({
                                                         <Input
                                                             aria-label="Merek"
                                                             placeholder="Merek"
-                                                            value={value(item, 'brand')}
+                                                            value={value(
+                                                                item,
+                                                                'brand',
+                                                            )}
                                                             onChange={(e) =>
                                                                 edit(
                                                                     item,
                                                                     'brand',
-                                                                    e.target.value,
+                                                                    e.target
+                                                                        .value,
                                                                 )
                                                             }
                                                             className="h-8"
@@ -650,7 +689,8 @@ export default function BulkScan({
                                                                 edit(
                                                                     item,
                                                                     'collection_number',
-                                                                    e.target.value,
+                                                                    e.target
+                                                                        .value,
                                                                 )
                                                             }
                                                             className="h-8"
@@ -658,12 +698,16 @@ export default function BulkScan({
                                                         <Input
                                                             aria-label="Seri"
                                                             placeholder="Seri"
-                                                            value={value(item, 'series')}
+                                                            value={value(
+                                                                item,
+                                                                'series',
+                                                            )}
                                                             onChange={(e) =>
                                                                 edit(
                                                                     item,
                                                                     'series',
-                                                                    e.target.value,
+                                                                    e.target
+                                                                        .value,
                                                                 )
                                                             }
                                                             className="col-span-2 h-8"
@@ -676,7 +720,9 @@ export default function BulkScan({
                                                                         ?.rarity ??
                                                                     'regular') as string
                                                             }
-                                                            onValueChange={(v) =>
+                                                            onValueChange={(
+                                                                v,
+                                                            ) =>
                                                                 edit(
                                                                     item,
                                                                     'rarity',
@@ -694,14 +740,23 @@ export default function BulkScan({
                                                             <SelectContent>
                                                                 {Object.entries(
                                                                     RARITY_LABELS,
-                                                                ).map(([v, l]) => (
-                                                                    <SelectItem
-                                                                        key={v}
-                                                                        value={v}
-                                                                    >
-                                                                        {l}
-                                                                    </SelectItem>
-                                                                ))}
+                                                                ).map(
+                                                                    ([
+                                                                        v,
+                                                                        l,
+                                                                    ]) => (
+                                                                        <SelectItem
+                                                                            key={
+                                                                                v
+                                                                            }
+                                                                            value={
+                                                                                v
+                                                                            }
+                                                                        >
+                                                                            {l}
+                                                                        </SelectItem>
+                                                                    ),
+                                                                )}
                                                             </SelectContent>
                                                         </Select>
                                                         <MoneyInput
@@ -715,18 +770,23 @@ export default function BulkScan({
                                                                 edit(
                                                                     item,
                                                                     'purchase_price',
-                                                                    e.target.value,
+                                                                    e.target
+                                                                        .value,
                                                                 )
                                                             }
                                                             className="h-8"
                                                         />
                                                     </div>
 
-                                                    {item.matches.length > 0 && (
+                                                    {item.matches.length >
+                                                        0 && (
                                                         <details className="rounded-md bg-sky-50 p-2 text-sm dark:bg-sky-500/10">
                                                             <summary className="cursor-pointer">
                                                                 Sudah ada{' '}
-                                                                {item.matches.length}{' '}
+                                                                {
+                                                                    item.matches
+                                                                        .length
+                                                                }{' '}
                                                                 yang mirip
                                                             </summary>
                                                             <div className="mt-2">
@@ -747,7 +807,10 @@ export default function BulkScan({
                                                             }
                                                             disabled={
                                                                 busy ||
-                                                                !value(item, 'name')
+                                                                !value(
+                                                                    item,
+                                                                    'name',
+                                                                )
                                                             }
                                                         >
                                                             <Save /> Simpan
@@ -767,7 +830,8 @@ export default function BulkScan({
                                                                     },
                                                                 )}
                                                             >
-                                                                <Pencil /> Lengkap
+                                                                <Pencil />{' '}
+                                                                Lengkap
                                                             </Link>
                                                         </Button>
                                                     </div>
@@ -780,7 +844,9 @@ export default function BulkScan({
                                             variant="ghost"
                                             className="size-8 shrink-0 text-muted-foreground hover:text-destructive"
                                             onClick={() => void discard(item)}
-                                            disabled={busy || processingId === item.id}
+                                            disabled={
+                                                busy || processingId === item.id
+                                            }
                                             aria-label="Buang foto ini"
                                             title="Buang"
                                         >

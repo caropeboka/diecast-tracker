@@ -79,6 +79,10 @@ class DataTest extends TestCase
     public function test_backup_and_restore_with_photos()
     {
         $user = $this->userWithCollection();
+        $this->actingAs($user)->post(route('sightings.store', $user->diecasts()->first()), [
+            'place' => 'Toys Kingdom', 'seen_on' => '2026-10-01', 'price' => 45000, 'photo' => UploadedFile::fake()->image('rak.jpg'),
+        ], ['Accept' => 'application/json'])->assertOk();
+
         $zip = $this->actingAs($user)->get(route('data.backup'))->assertOk()->getFile()->getPathname();
         $copy = tempnam(sys_get_temp_dir(), 'x').'.zip';
         copy($zip, $copy);
@@ -105,6 +109,11 @@ class DataTest extends TestCase
         $this->assertCount(1, $restored->first()->photos);
         Storage::disk('public')->assertExists($restored->first()->photos->first()->path);
         $this->assertSame(['Favorit', 'JDM'], $restored->first()->tags->pluck('name')->all());
+
+        $sighting = $restored->first()->sightings()->first();
+        $this->assertSame('Toys Kingdom', $sighting->place);
+        $this->assertSame('2026-10-01', $sighting->seen_on->toDateString());
+        Storage::disk('public')->assertExists($sighting->photo_path);
     }
 
     public function test_replace_restore_requires_confirmation()

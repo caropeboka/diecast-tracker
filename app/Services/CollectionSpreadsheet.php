@@ -53,7 +53,7 @@ class CollectionSpreadsheet
         ],
         'packaging' => ['carded' => 'Carded', 'boxed' => 'Box', 'loose' => 'Loose'],
         'condition' => ['mint' => 'Mint', 'near_mint' => 'Near mint', 'good' => 'Good', 'fair' => 'Fair', 'damaged' => 'Rusak'],
-        'status' => ['owned' => 'Dimiliki', 'wishlist' => 'Wishlist', 'sold' => 'Terjual'],
+        'status' => ['owned' => 'Dimiliki', 'wishlist' => 'Wishlist', 'spotted' => 'Ditemui', 'sold' => 'Terjual'],
     ];
 
     public function __construct(private DiecastWriter $writer) {}

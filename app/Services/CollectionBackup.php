@@ -22,7 +22,23 @@ class CollectionBackup
         private PhotoStorage $photos,
         private DiecastWriter $writer,
         private CollectionSpreadsheet $spreadsheet,
+        private SightingLog $sightings,
     ) {}
+
+    /**
+     * Copy a stored photo into the ZIP under photos/; returns its name there, or null if the file is gone.
+     */
+    private function addPhoto(ZipArchive $zip, string $path): ?string
+    {
+        if (! $this->photos->exists($path)) {
+            return null;
+        }
+
+        $name = 'photos/'.basename($path);
+        $zip->addFromString($name, $this->photos->contents($path));
+
+        return $name;
+    }
 
     public function create(User $user, string $zipPath): void
     {
@@ -33,24 +49,23 @@ class CollectionBackup
 
         $records = [];
 
-        $user->diecasts()->with('tags')->orderBy('id')->chunk(200, function ($diecasts) use ($zip, &$records) {
+        $user->diecasts()->with(['tags', 'sightings'])->orderBy('id')->chunk(200, function ($diecasts) use ($zip, &$records) {
             foreach ($diecasts as $diecast) {
-                $photos = [];
-
-                foreach ($diecast->photos as $photo) {
-                    if ($this->photos->exists($photo->path)) {
-                        $name = 'photos/'.basename($photo->path);
-                        $zip->addFromString($name, $this->photos->contents($photo->path));
-                        $photos[] = $name;
-                    }
-                }
-
                 $records[] = [
                     ...collect($diecast->only($diecast->getFillable()))
                         ->map(fn ($value) => $value instanceof \DateTimeInterface ? $value->format('Y-m-d') : $value)
                         ->all(),
                     'tags' => $diecast->tags->pluck('name')->all(),
-                    'photos' => $photos,
+                    'photos' => $diecast->photos->map(fn ($photo) => $this->addPhoto($zip, $photo->path))->filter()->values()->all(),
+                    'sightings' => $diecast->sightings->map(fn ($sighting) => [
+                        'place' => $sighting->place,
+                        'latitude' => $sighting->latitude,
+                        'longitude' => $sighting->longitude,
+                        'seen_on' => $sighting->seen_on->format('Y-m-d'),
+                        'price' => $sighting->price,
+                        'notes' => $sighting->notes,
+                        'photo' => $sighting->photo_path ? $this->addPhoto($zip, $sighting->photo_path) : null,
+                    ])->all(),
                 ];
             }
         });
@@ -116,7 +131,15 @@ class CollectionBackup
                 ->all();
 
             $data = $validator->validated();
-            $this->writer->save($user, null, collect($data)->except('tags')->all(), $photos, $data['tags'] ?? []);
+            $diecast = $this->writer->save($user, null, collect($data)->except(['tags', 'sighting'])->all(), $photos, $data['tags'] ?? []);
+
+            foreach ($record['sightings'] ?? [] as $sighting) {
+                if (is_array($sighting) && Validator::make($sighting, [...SightingLog::rules(), 'seen_on' => ['required', 'date']])->passes()) {
+                    $photo = isset($sighting['photo']) ? $this->extractPhoto($zip, (string) $sighting['photo']) : null;
+                    $this->sightings->record($diecast, $sighting, $photo);
+                }
+            }
+
             $imported++;
         }
 

@@ -16,7 +16,7 @@ export class HttpError extends Error {
     }
 }
 
-type Method = 'POST' | 'DELETE';
+type Method = 'GET' | 'POST' | 'DELETE';
 
 /**
  * Send JSON or FormData to a Laravel endpoint and parse the JSON reply.

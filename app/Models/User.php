@@ -61,6 +61,29 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     }
 
     /**
+     * @return HasMany<Sighting, $this>
+     */
+    public function sightings(): HasMany
+    {
+        return $this->hasMany(Sighting::class);
+    }
+
+    /**
+     * Stores and places used before (bought there or spotted there), for autocomplete.
+     *
+     * @return array<int, string>
+     */
+    public function knownPlaces(): array
+    {
+        return $this->diecasts()->setEagerLoads([])->whereNotNull('purchase_place')->pluck('purchase_place')
+            ->merge($this->sightings()->whereNotNull('place')->pluck('place'))
+            ->unique()
+            ->sort(SORT_NATURAL | SORT_FLAG_CASE)
+            ->values()
+            ->all();
+    }
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>

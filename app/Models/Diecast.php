@@ -34,17 +34,21 @@ use Illuminate\Support\Carbon;
  * @property string|null $target_price
  * @property Carbon|null $purchase_date
  * @property string|null $purchase_place
+ * @property float|null $purchase_latitude
+ * @property float|null $purchase_longitude
  * @property string|null $storage_location
  * @property string|null $notes
  * @property bool $ai_scanned
  * @property-read string|null $photo_url
  * @property-read Collection<int, DiecastPhoto> $photos
  * @property-read Collection<int, Tag> $tags
+ * @property-read Collection<int, Sighting> $sightings
  */
 #[Fillable([
     'name', 'brand', 'make', 'series', 'collection_number', 'year', 'scale', 'color',
     'rarity', 'packaging', 'condition', 'status', 'quantity', 'purchase_price', 'market_value',
-    'target_price', 'purchase_date', 'purchase_place', 'storage_location', 'notes', 'ai_scanned',
+    'target_price', 'purchase_date', 'purchase_place', 'purchase_latitude', 'purchase_longitude',
+    'storage_location', 'notes', 'ai_scanned',
 ])]
 class Diecast extends Model
 {
@@ -54,7 +58,8 @@ class Diecast extends Model
 
     public const CONDITIONS = ['mint', 'near_mint', 'good', 'fair', 'damaged'];
 
-    public const STATUSES = ['owned', 'wishlist', 'sold'];
+    /** spotted = "Ditemui": seen somewhere (store, friend, event) but not owned. */
+    public const STATUSES = ['owned', 'wishlist', 'spotted', 'sold'];
 
     public const SCALES = ['1:64', '1:43', '1:32', '1:24', '1:18', '1:87', '1:100'];
 
@@ -83,6 +88,8 @@ class Diecast extends Model
             'market_value_updated_at' => 'datetime',
             'target_price' => 'decimal:2',
             'purchase_date' => 'date:Y-m-d',
+            'purchase_latitude' => 'float',
+            'purchase_longitude' => 'float',
             'ai_scanned' => 'boolean',
         ];
     }
@@ -117,6 +124,16 @@ class Diecast extends Model
     public function priceChecks(): HasMany
     {
         return $this->hasMany(PriceCheck::class)->latest('id');
+    }
+
+    /**
+     * Where and when this diecast was seen, newest first.
+     *
+     * @return HasMany<Sighting, $this>
+     */
+    public function sightings(): HasMany
+    {
+        return $this->hasMany(Sighting::class)->orderByDesc('seen_on')->orderByDesc('id');
     }
 
     /**

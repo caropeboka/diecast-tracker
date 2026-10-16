@@ -31,6 +31,7 @@ class DashboardController extends Controller
                 'special_items' => (int) $owned()->where('rarity', '!=', 'regular')->sum('quantity'),
                 'super_treasure_hunts' => (int) $owned()->where('rarity', 'super_treasure_hunt')->sum('quantity'),
                 'wishlist' => $user->diecasts()->setEagerLoads([])->where('status', 'wishlist')->count(),
+                'spotted' => $user->diecasts()->setEagerLoads([])->where('status', 'spotted')->count(),
                 'brands' => $owned()->whereNotNull('brand')->distinct()->count('brand'),
                 'pending_scans' => $user->scanItems()->where('source', 'bulk')->whereIn('status', ['pending', 'done', 'failed'])->count(),
             ],
@@ -78,7 +79,7 @@ class DashboardController extends Controller
                 ->limit(5)
                 ->get(),
             'showcase' => $user->diecasts()
-                ->where('status', '!=', 'wishlist')
+                ->whereIn('status', ['owned', 'sold'])
                 ->has('photos')
                 ->orderByRaw('market_value IS NULL')
                 ->orderByDesc('market_value')
@@ -86,7 +87,7 @@ class DashboardController extends Controller
                 ->limit(6)
                 ->get(),
             'wishlist' => $user->diecasts()->where('status', 'wishlist')->latest()->limit(5)->get(),
-            'recent' => $user->diecasts()->where('status', '!=', 'wishlist')->latest()->limit(6)->get(),
+            'recent' => $user->diecasts()->whereIn('status', ['owned', 'sold'])->latest()->limit(6)->get(),
         ]);
     }
 }

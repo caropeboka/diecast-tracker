@@ -2,13 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\DiecastRequest;
 use App\Models\Diecast;
 use App\Models\ScanItem;
 use App\Services\CollectionMatcher;
 use App\Services\DiecastScanner;
+use App\Services\DiecastWriter;
 use App\Services\PhotoStorage;
+use App\Services\SightingLog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
 use Inertia\Response;
 use RuntimeException;
@@ -28,7 +32,51 @@ class CheckController extends Controller
     {
         return Inertia::render('diecasts/check', [
             'scanEnabled' => $this->scanner->isEnabled(),
+            'places' => $request->user()->knownPlaces(),
         ]);
+    }
+
+    /**
+     * "Ditemui": log that the checked diecast was seen here. With diecast_id the sighting goes on that
+     * existing entry (the photo becomes the sighting's photo); without it a new "spotted" diecast is created.
+     */
+    public function spot(Request $request, ScanItem $item, DiecastWriter $writer, SightingLog $sightings): JsonResponse
+    {
+        abort_unless($item->user_id === $request->user()->id, 404);
+        abort_if($item->status === 'saved', 422, 'Sudah dicatat.');
+
+        $data = $request->validate([
+            'diecast_id' => ['nullable', 'integer'],
+            ...SightingLog::rules(),
+        ]);
+        $sighting = collect($data)->only(['place', 'latitude', 'longitude', 'seen_on', 'price', 'notes'])->all();
+
+        if (isset($data['diecast_id'])) {
+            $diecast = $request->user()->diecasts()->findOrFail($data['diecast_id']);
+            $sightings->record($diecast, $sighting, $item->photo_path);
+        } else {
+            $attributes = Validator::make(
+                [
+                    'rarity' => 'regular',
+                    'packaging' => 'carded',
+                    'quantity' => 1,
+                    ...array_filter($item->fields ?? [], fn ($value) => $value !== null),
+                    'status' => 'spotted',
+                    'ai_scanned' => true,
+                ],
+                collect((new DiecastRequest)->rules())->only([...Diecast::SCAN_FIELDS, 'status', 'quantity', 'ai_scanned'])->all(),
+                ['name.required' => 'AI tidak menemukan nama diecast ini — tambahkan lewat form.'],
+            )->validate();
+
+            $diecast = $writer->save($request->user(), null, $attributes, [$item->photo_path], []);
+            $sightings->record($diecast, $sighting);
+        }
+
+        $item->update(['status' => 'saved', 'diecast_id' => $diecast->id]);
+
+        return response()->json(
+            $diecast->loadCount('sightings')->loadMin('sightings', 'price'),
+        );
     }
 
     /**

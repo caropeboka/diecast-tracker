@@ -14,9 +14,11 @@ import { useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import DiecastController from '@/actions/App/Http/Controllers/DiecastController';
 import InputError from '@/components/input-error';
+import LocationField, { recentSavedPlace } from '@/components/location-field';
 import MatchList from '@/components/match-list';
 import MoneyInput from '@/components/money-input';
 import PriceCheckPanel from '@/components/price-check-panel';
+import SightingsPanel from '@/components/sightings-panel';
 import TagInput from '@/components/tag-input';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,6 +30,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import StatusToggle from '@/components/status-toggle';
 import { postJson } from '@/lib/http';
 import { cn } from '@/lib/utils';
 import {
@@ -35,7 +38,6 @@ import {
     PACKAGING_LABELS,
     RARITY_LABELS,
     SCALES,
-    STATUS_LABELS,
 } from '@/types/diecast';
 import type {
     Condition,
@@ -68,6 +70,13 @@ const COMMON_BRANDS = [
 ];
 
 const MAX_PHOTOS = 8;
+
+const SECTION_TITLES: Record<DiecastStatus, string> = {
+    owned: 'Kepemilikan & harga',
+    wishlist: 'Buruan & target harga',
+    spotted: 'Temuan',
+    sold: 'Riwayat & harga',
+};
 const MAX_SCAN_PHOTOS = 4;
 
 type FormData = {
@@ -89,9 +98,17 @@ type FormData = {
     target_price: string;
     purchase_date: string;
     purchase_place: string;
+    purchase_latitude: number | null;
+    purchase_longitude: number | null;
     storage_location: string;
     notes: string;
     photos: string[];
+    // First sighting, only when adding a new "Ditemui" diecast.
+    sighting_place: string;
+    sighting_latitude: number | null;
+    sighting_longitude: number | null;
+    sighting_date: string;
+    sighting_price: string;
     tags: string[];
     ai_scanned: boolean;
 };
@@ -140,9 +157,16 @@ function initialData(
                 ? ''
                 : new Date().toISOString().slice(0, 10)),
         purchase_place: diecast?.purchase_place ?? '',
+        purchase_latitude: diecast?.purchase_latitude ?? null,
+        purchase_longitude: diecast?.purchase_longitude ?? null,
         storage_location: diecast?.storage_location ?? '',
         notes: diecast?.notes ?? '',
         photos: diecast?.photos.map((p) => p.path) ?? [],
+        sighting_place: '',
+        sighting_latitude: null,
+        sighting_longitude: null,
+        sighting_date: new Date().toISOString().slice(0, 10),
+        sighting_price: '',
         tags: diecast?.tags?.map((t) => t.name) ?? [],
         ai_scanned: diecast?.ai_scanned ?? false,
     };
@@ -224,6 +248,20 @@ export default function DiecastForm({
             Object.assign(data, prefill?.next ?? {});
         }
 
+        // Just checked/spotted in a store (location taken < 3 h ago)? That's probably where it's from.
+        const here = diecast ? null : recentSavedPlace();
+
+        if (here) {
+            Object.assign(data, {
+                purchase_place: here.name,
+                purchase_latitude: here.lat ?? null,
+                purchase_longitude: here.lng ?? null,
+                sighting_place: here.name,
+                sighting_latitude: here.lat ?? null,
+                sighting_longitude: here.lng ?? null,
+            });
+        }
+
         return data;
     });
     const { data, setData, errors, processing } = form;
@@ -263,6 +301,18 @@ export default function DiecastForm({
         new Set([...suggestions.brand, ...COMMON_BRANDS]),
     );
     const busy = uploading > 0 || scan.state === 'scanning';
+
+    function changeStatus(status: DiecastStatus) {
+        setData((current) => ({
+            ...current,
+            status,
+            // Moving a new entry out of the wishlist: it was bought today unless told otherwise.
+            purchase_date:
+                !diecast && status !== 'wishlist' && !current.purchase_date
+                    ? new Date().toISOString().slice(0, 10)
+                    : current.purchase_date,
+        }));
+    }
 
     function update<K extends keyof FormData>(key: K, value: FormData[K]) {
         setData((current) => ({ ...current, [key]: value }));
@@ -357,15 +407,51 @@ export default function DiecastForm({
     }
 
     function submit(addAnother: boolean) {
-        form.transform((current) => ({
-            ...current,
-            condition: current.condition || null,
-            target_price:
-                current.status === 'wishlist' ? current.target_price : null,
-            add_another: addAnother,
-            scan_item_id: scanItem?.id ?? null,
-            return_to: returnTo ?? null,
-        }));
+        form.transform(
+            ({
+                sighting_place,
+                sighting_latitude,
+                sighting_longitude,
+                sighting_date,
+                sighting_price,
+                ...current
+            }) => {
+                // Not in the garage: no purchase/storage details to keep.
+                const notOwned =
+                    current.status === 'wishlist' ||
+                    current.status === 'spotted';
+
+                return {
+                    ...current,
+                    condition: current.condition || null,
+                    target_price:
+                        current.status === 'wishlist'
+                            ? current.target_price
+                            : null,
+                    ...(notOwned && {
+                        purchase_price: null,
+                        purchase_date: null,
+                        purchase_place: null,
+                        purchase_latitude: null,
+                        purchase_longitude: null,
+                        storage_location: null,
+                    }),
+                    sighting:
+                        current.status === 'spotted' && !diecast
+                            ? {
+                                  place: sighting_place,
+                                  latitude: sighting_latitude,
+                                  longitude: sighting_longitude,
+                                  seen_on: sighting_date || null,
+                                  price: sighting_price || null,
+                              }
+                            : null,
+                    add_another: addAnother,
+                    scan_item_id: scanItem?.id ?? null,
+                    return_to: returnTo ?? null,
+                };
+            },
+        );
 
         if (diecast) {
             form.submit(DiecastController.update(diecast.id));
@@ -392,7 +478,7 @@ export default function DiecastForm({
                 {label}
                 {aiFields.has(key) && (
                     <Sparkles
-                        className="size-3.5 text-amber-500"
+                        className="size-3.5 text-brand"
                         aria-label="Diisi oleh AI"
                     />
                 )}
@@ -403,8 +489,7 @@ export default function DiecastForm({
     );
 
     const aiRing = (key: keyof FormData) =>
-        aiFields.has(key) &&
-        'border-amber-400 bg-amber-50/60 dark:border-amber-500/60 dark:bg-amber-500/10';
+        aiFields.has(key) && 'border-brand/60 bg-brand/8';
 
     const textInput = (
         key: keyof FormData,
@@ -427,7 +512,7 @@ export default function DiecastForm({
         );
 
     const optionSelect = <T extends string>(
-        key: 'rarity' | 'packaging' | 'status',
+        key: 'rarity' | 'packaging',
         label: string,
         options: Record<T, string>,
     ) =>
@@ -461,6 +546,12 @@ export default function DiecastForm({
             }}
             className="grid gap-6 lg:grid-cols-[minmax(0,380px)_1fr]"
         >
+            {/* Mode first: it decides which ownership fields appear below. */}
+            <div className="lg:col-span-2">
+                <StatusToggle value={data.status} onChange={changeStatus} />
+                <InputError message={errors.status} />
+            </div>
+
             {/* Photos + AI scan */}
             <div className="space-y-3 lg:sticky lg:top-4 lg:self-start">
                 <div
@@ -632,8 +723,10 @@ export default function DiecastForm({
 
             {/* Fields */}
             <div className="space-y-6">
-                <section className="space-y-4 rounded-xl border border-sidebar-border/70 p-4 dark:border-sidebar-border">
-                    <h3 className="font-medium">Identitas</h3>
+                <section className="surface space-y-4 rounded-xl p-4 md:p-5">
+                    <h3 className="font-heading text-base font-semibold">
+                        Identitas
+                    </h3>
 
                     {textInput('name', 'Nama model *', {
                         placeholder: "'71 Datsun 510",
@@ -693,7 +786,10 @@ export default function DiecastForm({
                                     </SelectItem>
                                     {Object.entries(CONDITION_LABELS).map(
                                         ([value, label]) => (
-                                            <SelectItem key={value} value={value}>
+                                            <SelectItem
+                                                key={value}
+                                                value={value}
+                                            >
                                                 {label}
                                             </SelectItem>
                                         ),
@@ -704,19 +800,87 @@ export default function DiecastForm({
                     </div>
                 </section>
 
-                <section className="space-y-4 rounded-xl border border-sidebar-border/70 p-4 dark:border-sidebar-border">
-                    <h3 className="font-medium">Kepemilikan & harga</h3>
+                <section className="surface space-y-4 rounded-xl p-4 md:p-5">
+                    <h3 className="font-heading text-base font-semibold">
+                        {SECTION_TITLES[data.status]}
+                    </h3>
 
                     <div className="grid gap-4 sm:grid-cols-2">
-                        {optionSelect('status', 'Status', STATUS_LABELS)}
-                        {textInput('quantity', 'Jumlah', {
-                            type: 'number',
-                            min: 1,
-                            inputMode: 'numeric',
-                            required: true,
-                        })}
+                        {data.status !== 'spotted' &&
+                            textInput('quantity', 'Jumlah', {
+                                type: 'number',
+                                min: 1,
+                                inputMode: 'numeric',
+                                required: true,
+                            })}
 
-                        {data.status === 'wishlist' ? (
+                        {data.status === 'spotted' ? (
+                            diecast ? (
+                                <p className="text-sm text-muted-foreground sm:col-span-2">
+                                    Tempat, tanggal, dan harga setiap kali
+                                    ditemui ada di{' '}
+                                    <strong>Catatan temuan</strong> di bawah.
+                                </p>
+                            ) : (
+                                <>
+                                    {field(
+                                        'sighting_place',
+                                        'Ditemui di',
+                                        <LocationField
+                                            value={{
+                                                name: data.sighting_place,
+                                                lat: data.sighting_latitude,
+                                                lng: data.sighting_longitude,
+                                            }}
+                                            onChange={(place) =>
+                                                setData((current) => ({
+                                                    ...current,
+                                                    sighting_place: place.name,
+                                                    sighting_latitude:
+                                                        place.lat ?? null,
+                                                    sighting_longitude:
+                                                        place.lng ?? null,
+                                                }))
+                                            }
+                                            places={suggestions.purchase_place}
+                                            placeholder="Toys Kingdom GI, teman, event…"
+                                        />,
+                                    )}
+                                    {textInput('sighting_date', 'Tanggal', {
+                                        type: 'date',
+                                    })}
+                                    {field(
+                                        'sighting_price',
+                                        'Harga di sana',
+                                        <MoneyInput
+                                            id="sighting_price"
+                                            placeholder="Opsional"
+                                            value={data.sighting_price}
+                                            onChange={(e) =>
+                                                update(
+                                                    'sighting_price',
+                                                    e.target.value,
+                                                )
+                                            }
+                                        />,
+                                    )}
+                                    <InputError
+                                        className="sm:col-span-2"
+                                        message={
+                                            (errors as Record<string, string>)[
+                                                'sighting.place'
+                                            ] ??
+                                            (errors as Record<string, string>)[
+                                                'sighting.seen_on'
+                                            ] ??
+                                            (errors as Record<string, string>)[
+                                                'sighting.price'
+                                            ]
+                                        }
+                                    />
+                                </>
+                            )
+                        ) : data.status === 'wishlist' ? (
                             field(
                                 'target_price',
                                 'Target harga maksimal',
@@ -774,10 +938,29 @@ export default function DiecastForm({
                                 {textInput('purchase_date', 'Tanggal beli', {
                                     type: 'date',
                                 })}
-                                {textInput('purchase_place', 'Beli di', {
-                                    list: 'place-options',
-                                    placeholder: 'Toko / marketplace / teman',
-                                })}
+                                {field(
+                                    'purchase_place',
+                                    'Beli di',
+                                    <LocationField
+                                        value={{
+                                            name: data.purchase_place,
+                                            lat: data.purchase_latitude,
+                                            lng: data.purchase_longitude,
+                                        }}
+                                        onChange={(place) =>
+                                            setData((current) => ({
+                                                ...current,
+                                                purchase_place: place.name,
+                                                purchase_latitude:
+                                                    place.lat ?? null,
+                                                purchase_longitude:
+                                                    place.lng ?? null,
+                                            }))
+                                        }
+                                        places={suggestions.purchase_place}
+                                        placeholder="Toko / marketplace / teman"
+                                    />,
+                                )}
                                 {textInput(
                                     'storage_location',
                                     'Lokasi simpan',
@@ -817,6 +1000,13 @@ export default function DiecastForm({
                         />,
                     )}
                 </section>
+
+                {diecast && (
+                    <SightingsPanel
+                        diecast={diecast}
+                        places={suggestions.purchase_place}
+                    />
+                )}
 
                 {diecast && (
                     <PriceCheckPanel
@@ -906,8 +1096,8 @@ function ScanFeedback({ scan }: { scan: ScanState }) {
             )}
 
             {fields && (
-                <div className="flex items-start gap-2 rounded-lg border border-amber-400/50 bg-amber-50 p-3 text-sm dark:bg-amber-500/10">
-                    <Sparkles className="mt-0.5 size-4 shrink-0 text-amber-500" />
+                <div className="flex items-start gap-2 rounded-lg border border-brand/40 bg-brand/10 p-3 text-sm">
+                    <Sparkles className="mt-0.5 size-4 shrink-0 text-brand" />
                     <div>
                         <p className="font-medium">
                             Field bertanda ✦ diisi oleh AI.

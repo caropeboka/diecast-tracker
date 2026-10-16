@@ -50,6 +50,7 @@ class DiecastWriter
         $paths = [
             ...$diecast->photos->pluck('path'),
             ...$diecast->priceChecks()->pluck('screenshots')->flatten(),
+            ...$diecast->sightings()->whereNotNull('photo_path')->pluck('photo_path'),
         ];
         $user = $diecast->user;
 

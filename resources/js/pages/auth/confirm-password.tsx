@@ -14,7 +14,7 @@ import PasskeyVerify from '@/components/passkey-verify';
 export default function ConfirmPassword() {
     return (
         <>
-            <Head title="Confirm password" />
+            <Head title="Konfirmasi password" />
 
             <PasskeyVerify
                 routes={{
@@ -22,7 +22,7 @@ export default function ConfirmPassword() {
                     submit: confirmStore(),
                 }}
                 label="Confirm with passkey"
-                loadingLabel="Confirming..."
+                loadingLabel="Mengonfirmasi..."
                 separator="Or confirm with password"
             />
 
@@ -49,7 +49,7 @@ export default function ConfirmPassword() {
                                 data-test="confirm-password-button"
                             >
                                 {processing && <Spinner />}
-                                Confirm password
+                                Ulangi password
                             </Button>
                         </div>
                     </div>
@@ -60,7 +60,7 @@ export default function ConfirmPassword() {
 }
 
 ConfirmPassword.layout = {
-    title: 'Confirm password',
+    title: 'Konfirmasi password',
     description:
-        'This is a secure area of the application. Please confirm your password before continuing.',
+        'Ini area yang dilindungi. Masukkan password kamu untuk melanjutkan.',
 };

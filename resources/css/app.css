@@ -13,9 +13,18 @@
         'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
         'Noto Color Emoji';
 
+    /* Display face for page titles & section headings — set per style below. */
+    --font-display: var(--style-font-display);
+
     --radius-lg: var(--radius);
     --radius-md: calc(var(--radius) - 2px);
     --radius-sm: calc(var(--radius) - 4px);
+    --radius-xl: calc(var(--radius) + 4px);
+    --radius-2xl: calc(var(--radius) + 8px);
+
+    --color-brand: var(--brand);
+    --color-brand-2: var(--brand-2);
+    --color-brand-foreground: var(--brand-foreground);
 
     --color-background: var(--background);
     --color-foreground: var(--foreground);
@@ -170,6 +179,149 @@
     --viz-limited: #3987e5;
 }
 
+/* ---------------------------------------------------------------------------
+ * Visual styles ("Gaya tampilan"): <html data-style="garage|showroom|neon">.
+ * The brand/display tokens apply in both modes; the full surface palette is
+ * dark-only (the app defaults to dark). Chart bar colors were validated for
+ * lightness band + 3:1 contrast against each style's card surface.
+ * ------------------------------------------------------------------------- */
+:root {
+    --brand: #ff6a1a;
+    --brand-2: #ffb020;
+    --brand-foreground: #160a03;
+    --brand-glow: rgb(255 106 26 / 0.35);
+    --card-edge: var(--border);
+    --style-font-display: 'Saira Condensed', var(--font-sans);
+    --display-transform: uppercase;
+    --display-tracking: 0.02em;
+    --page-texture: none;
+}
+
+[data-style='showroom'] {
+    --brand: #e3b341;
+    --brand-2: #f5d98b;
+    --brand-foreground: #1a1405;
+    --brand-glow: rgb(227 179 65 / 0.22);
+    --style-font-display: 'Fraunces', Georgia, serif;
+    --display-transform: none;
+    --display-tracking: -0.01em;
+}
+
+[data-style='neon'] {
+    --brand: #22d3ee;
+    --brand-2: #8b5cf6;
+    --brand-foreground: #03131a;
+    --brand-glow: rgb(34 211 238 / 0.25);
+    --style-font-display: 'Space Grotesk', var(--font-sans);
+    --display-transform: none;
+    --display-tracking: -0.02em;
+}
+
+.dark[data-style='garage'],
+.dark:not([data-style]) {
+    --background: #0b0b0d;
+    --foreground: #f4f1ec;
+    --card: #131316;
+    --card-foreground: #f4f1ec;
+    --popover: #16161a;
+    --popover-foreground: #f4f1ec;
+    --primary: #ff6a1a;
+    --primary-foreground: #160a03;
+    --secondary: #1c1c21;
+    --secondary-foreground: #f4f1ec;
+    --muted: #1c1c21;
+    --muted-foreground: #9a968f;
+    --accent: #221f1c;
+    --accent-foreground: #f4f1ec;
+    --border: #26262b;
+    --input: #2c2c32;
+    --ring: #ff6a1a;
+    --radius: 0.375rem;
+    --sidebar: #0e0e11;
+    --sidebar-foreground: #e7e3dc;
+    --sidebar-primary: #ff6a1a;
+    --sidebar-primary-foreground: #160a03;
+    --sidebar-accent: #1d1a17;
+    --sidebar-accent-foreground: #ffffff;
+    --sidebar-border: #1f1f24;
+    --sidebar-ring: #ff6a1a;
+    --card-edge: #2a2a30;
+    /* Faint carbon-fiber weave */
+    --page-texture:
+        repeating-linear-gradient(45deg, rgb(255 255 255 / 0.018) 0 2px, transparent 2px 6px),
+        repeating-linear-gradient(-45deg, rgb(0 0 0 / 0.25) 0 2px, transparent 2px 6px);
+    --viz-bar: #e8590c;
+    --viz-track: #3d2012;
+}
+
+.dark[data-style='showroom'] {
+    --background: #070b18;
+    --foreground: #f3efe6;
+    --card: #0e1428;
+    --card-foreground: #f3efe6;
+    --popover: #111833;
+    --popover-foreground: #f3efe6;
+    --primary: #e3b341;
+    --primary-foreground: #1a1405;
+    --secondary: #151c33;
+    --secondary-foreground: #f3efe6;
+    --muted: #151c33;
+    --muted-foreground: #9aa3b8;
+    --accent: #1a2240;
+    --accent-foreground: #f3efe6;
+    --border: #1e2742;
+    --input: #232c4a;
+    --ring: #e3b341;
+    --radius: 0.875rem;
+    --sidebar: #090e1e;
+    --sidebar-foreground: #e6e2d8;
+    --sidebar-primary: #e3b341;
+    --sidebar-primary-foreground: #1a1405;
+    --sidebar-accent: #161d36;
+    --sidebar-accent-foreground: #ffffff;
+    --sidebar-border: #1a2240;
+    --sidebar-ring: #e3b341;
+    --card-edge: rgb(227 179 65 / 0.14);
+    --page-texture: radial-gradient(1200px 500px at 85% -10%, rgb(227 179 65 / 0.07), transparent 60%);
+    --viz-bar: #b8862b;
+    --viz-track: #322e31;
+}
+
+.dark[data-style='neon'] {
+    --background: #060608;
+    --foreground: #f2f4f8;
+    --card: #0e0e12;
+    --card-foreground: #f2f4f8;
+    --popover: #121217;
+    --popover-foreground: #f2f4f8;
+    --primary: #22d3ee;
+    --primary-foreground: #03131a;
+    --secondary: #17171d;
+    --secondary-foreground: #f2f4f8;
+    --muted: #17171d;
+    --muted-foreground: #8e93a3;
+    --accent: #1a1a23;
+    --accent-foreground: #f2f4f8;
+    --border: #22222b;
+    --input: #282831;
+    --ring: #22d3ee;
+    --radius: 0.75rem;
+    --sidebar: #09090c;
+    --sidebar-foreground: #e4e6ec;
+    --sidebar-primary: #22d3ee;
+    --sidebar-primary-foreground: #03131a;
+    --sidebar-accent: #15151c;
+    --sidebar-accent-foreground: #ffffff;
+    --sidebar-border: #1b1b23;
+    --sidebar-ring: #22d3ee;
+    --card-edge: rgb(139 92 246 / 0.22);
+    --page-texture:
+        radial-gradient(900px 420px at 10% -10%, rgb(34 211 238 / 0.08), transparent 60%),
+        radial-gradient(900px 420px at 95% 0%, rgb(139 92 246 / 0.09), transparent 60%);
+    --viz-bar: #0ea5c6;
+    --viz-track: #102f38;
+}
+
 @layer base {
     * {
         @apply border-border;
@@ -177,5 +329,123 @@
 
     body {
         @apply bg-background text-foreground;
+    }
+
+    .dark body {
+        background-image: var(--page-texture);
+        background-attachment: fixed;
+    }
+}
+
+/* Page titles and section headings in the style's display face. */
+@utility font-heading {
+    font-family: var(--style-font-display);
+    text-transform: var(--display-transform);
+    letter-spacing: var(--display-tracking);
+}
+
+/* Card surface: background, hairline edge tinted per style. */
+@utility surface {
+    background-color: var(--card);
+    border: 1px solid var(--card-edge);
+}
+
+/* Hover/focus lift with a glow in the brand color. */
+@utility lift {
+    transition:
+        transform 0.2s ease,
+        box-shadow 0.2s ease,
+        border-color 0.2s ease;
+
+    &:hover,
+    &:focus-visible {
+        transform: translateY(-2px);
+        border-color: color-mix(in oklab, var(--brand) 45%, transparent);
+        box-shadow: 0 12px 32px -14px var(--brand-glow);
+    }
+}
+
+@utility bg-brand-gradient {
+    background-image: linear-gradient(135deg, var(--brand), var(--brand-2));
+}
+
+@utility text-brand-gradient {
+    background-image: linear-gradient(135deg, var(--brand), var(--brand-2));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+/* Soft brand-colored light behind a hero block. */
+@utility aura {
+    position: relative;
+    isolation: isolate;
+
+    &::before {
+        content: '';
+        position: absolute;
+        inset: -1px;
+        z-index: -1;
+        border-radius: inherit;
+        background:
+            radial-gradient(600px 260px at 0% 0%, var(--brand-glow), transparent 65%),
+            radial-gradient(500px 240px at 100% 100%, color-mix(in oklab, var(--brand-2) 18%, transparent), transparent 70%);
+        pointer-events: none;
+    }
+}
+
+/* Leaflet map (Peta jelajah) in the app's colors */
+.leaflet-container {
+    background: var(--card);
+    font-family: inherit;
+}
+
+/* Light OSM tiles turned into a dark basemap; markers are unaffected. */
+.dark .map-tiles-dark {
+    filter: invert(100%) hue-rotate(180deg) brightness(90%) contrast(88%) saturate(55%);
+}
+
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip,
+.leaflet-tooltip {
+    background: var(--popover);
+    color: var(--popover-foreground);
+    border: 1px solid var(--border);
+    box-shadow: 0 12px 32px -12px rgb(0 0 0 / 0.6);
+}
+
+.leaflet-popup-content {
+    margin: 12px;
+}
+
+.leaflet-tooltip-top::before {
+    border-top-color: var(--popover);
+}
+
+.leaflet-control-attribution {
+    background: rgb(0 0 0 / 0.55) !important;
+    color: #a1a1aa;
+}
+
+.leaflet-control-attribution a {
+    color: #d4d4d8;
+}
+
+/* leaflet.css loads after this file, so these need the extra .leaflet-container to win. */
+.leaflet-container .leaflet-bar a,
+.leaflet-container .leaflet-bar a:hover {
+    background: var(--popover);
+    color: var(--popover-foreground);
+    border-color: var(--border);
+}
+
+.leaflet-container .leaflet-bar {
+    border-color: var(--border);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .lift:hover,
+    .lift:focus-visible {
+        transform: none;
     }
 }

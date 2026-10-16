@@ -3,7 +3,7 @@ import { Car } from 'lucide-react';
 import type { ReactNode } from 'react';
 import DiecastController from '@/actions/App/Http/Controllers/DiecastController';
 import { Badge } from '@/components/ui/badge';
-import { formatRupiah } from '@/types/diecast';
+import { formatRupiah, STATUS_LABELS } from '@/types/diecast';
 import type { ScanMatch } from '@/types/diecast';
 
 /**
@@ -51,19 +51,26 @@ export default function MatchList({
                                         {formatRupiah(match.target_price)}
                                     </span>
                                 )}
+                            {!!match.sightings_count &&
+                                match.sightings_min_price && (
+                                    <span className="block text-xs text-muted-foreground">
+                                        Pernah ditemui mulai{' '}
+                                        {formatRupiah(match.sightings_min_price)}
+                                    </span>
+                                )}
                         </span>
                     </Link>
                     <Badge
                         variant={
-                            match.status === 'wishlist' ? 'outline' : 'secondary'
+                            match.status === 'owned' ? 'secondary' : 'outline'
                         }
                         className="shrink-0"
                     >
-                        {match.status === 'wishlist'
-                            ? 'Wishlist'
-                            : match.status === 'sold'
-                              ? 'Terjual'
-                              : `Punya ${match.quantity}×`}
+                        {match.status === 'owned'
+                            ? `Punya ${match.quantity}×`
+                            : match.status === 'spotted'
+                              ? `Ditemui ${match.sightings_count ?? 0}×`
+                              : STATUS_LABELS[match.status]}
                     </Badge>
                     {actions?.(match)}
                 </li>

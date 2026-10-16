@@ -8,6 +8,7 @@ use App\Services\CollectionMatcher;
 use App\Services\DiecastScanner;
 use App\Services\DiecastWriter;
 use App\Services\PhotoStorage;
+use App\Services\SightingLog;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -43,7 +44,12 @@ class DiecastController extends Controller
                 });
             })
             ->when($filters['brand'] ?? null, fn (Builder $query, string $brand) => $query->where('brand', $brand))
-            ->when($filters['status'] ?? null, fn (Builder $query, string $status) => $query->where('status', $status))
+            // Spotted-only entries have their own list; keep them out of the default collection view.
+            ->when(
+                $filters['status'] ?? null,
+                fn (Builder $query, string $status) => $query->where('status', $status),
+                fn (Builder $query) => $query->where('status', '!=', 'spotted'),
+            )
             ->when($filters['rarity'] ?? null, fn (Builder $query, string $rarity) => $query->where('rarity', $rarity))
             ->when($filters['tag'] ?? null, fn (Builder $query, string $tag) => $query->whereHas('tags', fn (Builder $tags) => $tags->where('name', $tag)))
             // "Lengkapi" links from the dashboard: diecasts still missing a piece of data.
@@ -65,8 +71,13 @@ class DiecastController extends Controller
         };
 
         return Inertia::render('diecasts/index', [
-            'diecasts' => $diecasts->paginate(24)->withQueryString(),
-            'filters' => $filters,
+            'diecasts' => $diecasts
+                ->withCount('sightings')
+                ->withMin('sightings', 'price')
+                ->paginate(24)
+                ->withQueryString(),
+            // An object even when empty: as a JSON array, filters.sort would be Array.prototype.sort.
+            'filters' => (object) $filters,
             'brands' => $this->distinct($request, 'brand'),
             'tags' => $request->user()->tags()->orderBy('name')->pluck('name'),
         ]);
@@ -92,7 +103,7 @@ class DiecastController extends Controller
         ]);
     }
 
-    public function store(DiecastRequest $request): RedirectResponse
+    public function store(DiecastRequest $request, SightingLog $sightings): RedirectResponse
     {
         $diecast = $this->writer->save(
             $request->user(),
@@ -108,7 +119,13 @@ class DiecastController extends Controller
                 ->update(['status' => 'saved', 'diecast_id' => $diecast->id]);
         }
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => "{$diecast->name} ditambahkan ke koleksi."]);
+        if ($diecast->status === 'spotted') {
+            $sightings->record($diecast, $request->validated('sighting') ?? []);
+        }
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => $diecast->status === 'spotted'
+            ? "{$diecast->name} dicatat sebagai temuan."
+            : "{$diecast->name} ditambahkan ke koleksi."]);
 
         return match (true) {
             $request->boolean('add_another') => to_route('diecasts.create', ['status' => $diecast->status]),
@@ -123,7 +140,7 @@ class DiecastController extends Controller
 
         return Inertia::render('diecasts/edit', [
             ...$this->formOptions($request),
-            'diecast' => $diecast->load('tags'),
+            'diecast' => $diecast->load(['tags', 'sightings']),
             'priceChecks' => $diecast->priceChecks()->limit(5)->get(),
         ]);
     }
@@ -257,7 +274,7 @@ class DiecastController extends Controller
             'suggestions' => [
                 'brand' => $this->distinct($request, 'brand'),
                 'series' => $this->distinct($request, 'series'),
-                'purchase_place' => $this->distinct($request, 'purchase_place'),
+                'purchase_place' => $request->user()->knownPlaces(),
                 'storage_location' => $this->distinct($request, 'storage_location'),
                 'tags' => $request->user()->tags()->orderBy('name')->pluck('name'),
             ],

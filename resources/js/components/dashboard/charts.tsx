@@ -185,11 +185,13 @@ export function StatTile({
 }) {
     const body = (
         <>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                {icon}
+            <div className="flex items-center gap-2.5 text-sm text-muted-foreground">
+                <span className="flex size-8 items-center justify-center rounded-lg bg-brand/12 text-brand [&>svg]:size-4">
+                    {icon}
+                </span>
                 {label}
             </div>
-            <p className="mt-2 text-2xl font-semibold tracking-tight">
+            <p className="mt-3 text-2xl font-semibold tracking-tight">
                 {value}
             </p>
             {hint && (
@@ -200,14 +202,10 @@ export function StatTile({
         </>
     );
 
-    const className =
-        'block rounded-xl border border-sidebar-border/70 bg-card p-4 dark:border-sidebar-border';
+    const className = 'surface block rounded-xl p-4';
 
     return href ? (
-        <Link
-            href={href}
-            className={cn(className, 'transition hover:bg-muted/40')}
-        >
+        <Link href={href} className={cn(className, 'lift')}>
             {body}
         </Link>
     ) : (
@@ -230,14 +228,9 @@ export function Panel({
     className?: string;
 }) {
     return (
-        <section
-            className={cn(
-                'rounded-xl border border-sidebar-border/70 bg-card p-4 dark:border-sidebar-border',
-                className,
-            )}
-        >
+        <section className={cn('surface rounded-xl p-4 md:p-5', className)}>
             <div className="mb-4 flex items-center justify-between gap-2">
-                <h3 className="flex items-center gap-2 font-medium">
+                <h3 className="flex items-center gap-2 font-heading text-base font-semibold [&>svg]:text-brand">
                     {icon}
                     {title}
                 </h3>

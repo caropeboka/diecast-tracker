@@ -4,7 +4,9 @@ use App\Http\Controllers\BulkScanController;
 use App\Http\Controllers\CheckController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DiecastController;
+use App\Http\Controllers\ExploreController;
 use App\Http\Controllers\PriceCheckController;
+use App\Http\Controllers\SightingController;
 use Illuminate\Support\Facades\Route;
 
 Route::inertia('/', 'welcome')->name('home');
@@ -31,6 +33,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('scan/check', [CheckController::class, 'index'])->name('check.index');
     Route::post('scan/check', [CheckController::class, 'check'])->middleware('throttle:30,1')->name('check.store');
     Route::post('scan/check/{diecast}/quick', [CheckController::class, 'quick'])->name('check.quick');
+    Route::post('scan/check/{item}/spot', [CheckController::class, 'spot'])->name('check.spot');
+
+    // Map of explored places + GPS → place name
+    Route::get('peta', [ExploreController::class, 'index'])->name('explore.index');
+    // The picker looks up a name each time the map stops moving; OpenStreetMap allows ~1 request/second.
+    Route::get('places/lookup', [ExploreController::class, 'lookup'])->middleware('throttle:60,1')->name('places.lookup');
+    Route::get('places/search', [ExploreController::class, 'search'])->middleware('throttle:30,1')->name('places.search');
+
+    // "Ditemui" sightings
+    Route::post('diecasts/{diecast}/sightings', [SightingController::class, 'store'])->name('sightings.store');
+    Route::delete('sightings/{sighting}', [SightingController::class, 'destroy'])->name('sightings.destroy');
 
     // Market price from marketplace screenshots
     Route::post('diecasts/{diecast}/price-checks', [PriceCheckController::class, 'store'])

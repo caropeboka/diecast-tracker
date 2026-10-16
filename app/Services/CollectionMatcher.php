@@ -49,6 +49,8 @@ class CollectionMatcher
 
         return Diecast::query()
             ->whereKey($scores->keys())
+            ->withCount('sightings')
+            ->withMin('sightings', 'price')
             ->get()
             ->sortByDesc(fn (Diecast $diecast) => $scores[$diecast->id])
             ->values();

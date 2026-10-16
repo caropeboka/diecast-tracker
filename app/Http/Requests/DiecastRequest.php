@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\Diecast;
+use App\Services\SightingLog;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -37,6 +38,8 @@ class DiecastRequest extends FormRequest
             'target_price' => $money,
             'purchase_date' => ['nullable', 'date'],
             'purchase_place' => ['nullable', 'string', 'max:255'],
+            'purchase_latitude' => ['nullable', 'numeric', 'between:-90,90', 'required_with:purchase_longitude'],
+            'purchase_longitude' => ['nullable', 'numeric', 'between:-180,180', 'required_with:purchase_latitude'],
             'storage_location' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string', 'max:5000'],
             'ai_scanned' => ['boolean'],
@@ -45,6 +48,9 @@ class DiecastRequest extends FormRequest
             'tags' => ['array', 'max:20'],
             'tags.*' => ['string', 'max:50'],
             'scan_item_id' => ['nullable', 'integer'],
+            // First "Ditemui" sighting, entered with a new spotted diecast.
+            'sighting' => ['nullable', 'array'],
+            ...SightingLog::rules('sighting.'),
         ];
     }
 
@@ -55,7 +61,7 @@ class DiecastRequest extends FormRequest
      */
     public function diecastData(): array
     {
-        return collect($this->validated())->except(['photos', 'tags', 'scan_item_id'])->all();
+        return collect($this->validated())->except(['photos', 'tags', 'scan_item_id', 'sighting'])->all();
     }
 
     /**
