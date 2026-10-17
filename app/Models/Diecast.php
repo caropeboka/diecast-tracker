@@ -39,7 +39,10 @@ use Illuminate\Support\Carbon;
  * @property string|null $storage_location
  * @property string|null $notes
  * @property bool $ai_scanned
+ * @property int|null $catalog_item_id
+ * @property string|null $catalog_match auto|confirmed
  * @property-read string|null $photo_url
+ * @property-read CatalogItem|null $catalogItem
  * @property-read Collection<int, DiecastPhoto> $photos
  * @property-read Collection<int, Tag> $tags
  * @property-read Collection<int, Sighting> $sightings
@@ -124,6 +127,16 @@ class Diecast extends Model
     public function priceChecks(): HasMany
     {
         return $this->hasMany(PriceCheck::class)->latest('id');
+    }
+
+    /**
+     * The dex entry (release) this diecast is.
+     *
+     * @return BelongsTo<CatalogItem, $this>
+     */
+    public function catalogItem(): BelongsTo
+    {
+        return $this->belongsTo(CatalogItem::class);
     }
 
     /**

@@ -2,7 +2,9 @@
 
 use App\Http\Controllers\BulkScanController;
 use App\Http\Controllers\CheckController;
+use App\Http\Controllers\CustomDexController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DexController;
 use App\Http\Controllers\DiecastController;
 use App\Http\Controllers\ExploreController;
 use App\Http\Controllers\PriceCheckController;
@@ -40,6 +42,23 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // The picker looks up a name each time the map stops moving; OpenStreetMap allows ~1 request/second.
     Route::get('places/lookup', [ExploreController::class, 'lookup'])->middleware('throttle:60,1')->name('places.lookup');
     Route::get('places/search', [ExploreController::class, 'search'])->middleware('throttle:30,1')->name('places.search');
+
+    // Dex: every release of a line vs. what was seen/owned
+    Route::get('dex', [DexController::class, 'index'])->name('dex.index');
+    Route::get('dex/cocokkan', [DexController::class, 'matches'])->name('dex.matches');
+    Route::post('dex/sync', [DexController::class, 'sync'])->middleware('throttle:40,1')->name('dex.sync');
+    Route::post('dex/images', [DexController::class, 'images'])->middleware('throttle:120,1')->name('dex.images');
+    Route::get('dex/{catalog}', [DexController::class, 'show'])->whereNumber('catalog')->name('dex.show');
+    Route::delete('dex/{catalog}', [DexController::class, 'destroy'])->whereNumber('catalog')->name('dex.destroy');
+    Route::post('diecasts/{diecast}/dex', [DexController::class, 'link'])->name('dex.link');
+    // Own dex lists (brands without a wiki list)
+    Route::post('dex/custom', [CustomDexController::class, 'store'])->name('dex.custom.store');
+    Route::patch('dex/{catalog}', [CustomDexController::class, 'update'])->whereNumber('catalog')->name('dex.custom.update');
+    Route::post('dex/{catalog}/items', [CustomDexController::class, 'addItem'])->whereNumber('catalog')->name('dex.custom.items.store');
+    Route::delete('dex/items/{item}', [CustomDexController::class, 'destroyItem'])->name('dex.custom.items.destroy');
+    Route::post('dex/{catalog}/import', [CustomDexController::class, 'import'])->whereNumber('catalog')->name('dex.custom.import');
+    Route::post('dex/{catalog}/scan', [CustomDexController::class, 'scan'])->whereNumber('catalog')->middleware('throttle:20,1')->name('dex.custom.scan');
+    Route::post('dex/{catalog}/from-collection', [CustomDexController::class, 'fromCollection'])->whereNumber('catalog')->name('dex.custom.from-collection');
 
     // "Ditemui" sightings
     Route::post('diecasts/{diecast}/sightings', [SightingController::class, 'store'])->name('sightings.store');

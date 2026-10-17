@@ -1,5 +1,6 @@
 import { Link, router } from '@inertiajs/react';
 import {
+    BookMarked,
     Car,
     Eye,
     Heart,
@@ -12,6 +13,7 @@ import {
 import { useEffect } from 'react';
 import BulkScanController from '@/actions/App/Http/Controllers/BulkScanController';
 import CheckController from '@/actions/App/Http/Controllers/CheckController';
+import DexController from '@/actions/App/Http/Controllers/DexController';
 import DiecastController from '@/actions/App/Http/Controllers/DiecastController';
 import ExploreController from '@/actions/App/Http/Controllers/ExploreController';
 import AppLogo from '@/components/app-logo';
@@ -50,6 +52,11 @@ const garageItems: NavItem[] = [
         title: 'Ditemui',
         href: DiecastController.index({ query: { status: 'spotted' } }),
         icon: Eye,
+    },
+    {
+        title: 'Dex',
+        href: DexController.index(),
+        icon: BookMarked,
     },
 ];
 

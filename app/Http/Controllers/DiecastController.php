@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\DiecastRequest;
+use App\Models\CatalogItem;
 use App\Models\Diecast;
 use App\Services\CollectionMatcher;
+use App\Services\Dex\CatalogMatcher;
 use App\Services\DiecastScanner;
 use App\Services\DiecastWriter;
 use App\Services\PhotoStorage;
@@ -90,9 +92,19 @@ class DiecastController extends Controller
             ->whereIn('status', ['done', 'failed'])
             ->first();
 
+        // Coming from a dex entry: fill the form the way the card prints it.
+        $dexItem = CatalogItem::with('catalog')
+            ->whereKey($request->integer('dex_item'))
+            ->whereIn('catalog_id', $request->user()->catalogs()->select('id'))
+            ->first();
+
         return Inertia::render('diecasts/create', [
             ...$this->formOptions($request),
-            'status' => $request->query('status') === 'wishlist' ? 'wishlist' : 'owned',
+            'status' => in_array($request->query('status'), ['wishlist', 'spotted'], true) ? $request->query('status') : 'owned',
+            'dexItem' => $dexItem ? [
+                ...CatalogMatcher::present($dexItem),
+                'fields' => CatalogMatcher::prefill($dexItem),
+            ] : null,
             'scanItem' => $scanItem ? [
                 'id' => $scanItem->id,
                 'photo_path' => $scanItem->photo_path,
@@ -112,6 +124,10 @@ class DiecastController extends Controller
             $request->input('photos', []),
             $request->input('tags', []),
         );
+
+        if ($request->filled('catalog_item_id')) {
+            $diecast->forceFill(['catalog_item_id' => $request->integer('catalog_item_id'), 'catalog_match' => 'confirmed'])->save();
+        }
 
         if ($request->filled('scan_item_id')) {
             $request->user()->scanItems()
@@ -134,14 +150,26 @@ class DiecastController extends Controller
         };
     }
 
-    public function edit(Request $request, Diecast $diecast): Response
+    public function edit(Request $request, Diecast $diecast, CatalogMatcher $catalog): Response
     {
         $this->authorizeOwner($request, $diecast);
 
+        $diecast->load(['tags', 'sightings', 'catalogItem.catalog']);
+        $item = $diecast->catalogItem;
+
         return Inertia::render('diecasts/edit', [
             ...$this->formOptions($request),
-            'diecast' => $diecast->load(['tags', 'sightings']),
+            'diecast' => $diecast,
             'priceChecks' => $diecast->priceChecks()->limit(5)->get(),
+            'dex' => [
+                'linked' => $item ? CatalogMatcher::present(
+                    $item,
+                    yearFix: $item->catalog->year && $item->catalog->year !== $diecast->year ? $item->catalog->year : null,
+                ) : null,
+                'match' => $diecast->catalog_match,
+                'suggestions' => $item ? [] : $catalog->suggest($diecast)
+                    ->map(fn (array $s) => CatalogMatcher::present($s['item'], $s['score'], $s['year_fix'])),
+            ],
         ]);
     }
 
@@ -220,8 +248,27 @@ class DiecastController extends Controller
         return response()->json([
             'fields' => $fields,
             'matches' => $this->matcher->find($request->user(), $fields),
+            'dex' => $this->dexSuggestion($request, $fields),
             'error' => null,
         ]);
+    }
+
+    /**
+     * The dex entry the scanned card most likely is — with its real release year, since the year
+     * printed on a card is often the casting's copyright year.
+     *
+     * @param  array<string, mixed>  $fields
+     * @return array<string, mixed>|null
+     */
+    private function dexSuggestion(Request $request, array $fields): ?array
+    {
+        $probe = (new Diecast)->forceFill(collect($fields)->only(Diecast::SCAN_FIELDS)->all())
+            ->setRelation('user', $request->user());
+        $best = app(CatalogMatcher::class)->suggest($probe, 1)->first();
+
+        return $best && $best['score'] >= CatalogMatcher::AUTO_SCORE
+            ? CatalogMatcher::present($best['item'], $best['score'], $best['year_fix'])
+            : null;
     }
 
     /**

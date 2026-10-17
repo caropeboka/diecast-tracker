@@ -7,17 +7,20 @@ import type {
     DiecastSuggestions,
     PriceCheck,
 } from '@/types/diecast';
+import type { DexLinkState } from '@/types/dex';
 
 export default function EditDiecast({
     diecast,
     suggestions,
     scanEnabled,
     priceChecks,
+    dex,
 }: {
     diecast: Diecast;
     suggestions: DiecastSuggestions;
     scanEnabled: boolean;
     priceChecks: PriceCheck[];
+    dex: DexLinkState;
 }) {
     return (
         <>
@@ -35,6 +38,7 @@ export default function EditDiecast({
                     suggestions={suggestions}
                     scanEnabled={scanEnabled}
                     priceChecks={priceChecks}
+                    dex={dex}
                 />
             </div>
         </>

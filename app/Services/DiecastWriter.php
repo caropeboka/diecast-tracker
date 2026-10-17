@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Diecast;
 use App\Models\User;
+use App\Services\Dex\CatalogMatcher;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -12,7 +13,13 @@ use Illuminate\Support\Str;
  */
 class DiecastWriter
 {
-    public function __construct(private PhotoStorage $photos) {}
+    /** Changing any of these can change which dex entry a diecast is. */
+    private const MATCH_FIELDS = ['name', 'brand', 'series', 'collection_number', 'year', 'rarity'];
+
+    public function __construct(
+        private PhotoStorage $photos,
+        private CatalogMatcher $catalog,
+    ) {}
 
     /**
      * @param  array<string, mixed>  $data  validated diecast attributes
@@ -40,6 +47,10 @@ class DiecastWriter
 
         foreach ($filesToDelete as $path) {
             $this->photos->delete($path);
+        }
+
+        if ($diecast->wasRecentlyCreated || $diecast->wasChanged(self::MATCH_FIELDS)) {
+            $this->catalog->autoLink($diecast);
         }
 
         return $diecast->load(['photos', 'tags']);

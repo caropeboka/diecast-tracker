@@ -1,3 +1,5 @@
+import type { DexRef } from '@/types/dex';
+
 export type Rarity =
     | 'regular'
     | 'treasure_hunt'
@@ -132,6 +134,8 @@ export type ScanResponse = {
     fields: ScanFields | null;
     error: string | null;
     matches: ScanMatch[];
+    /** The dex entry the card most likely is (only when sure). */
+    dex?: DexRef | null;
 };
 
 export type ScanItem = {

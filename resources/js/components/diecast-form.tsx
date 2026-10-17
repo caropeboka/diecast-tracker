@@ -13,6 +13,7 @@ import {
 import { useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import DiecastController from '@/actions/App/Http/Controllers/DiecastController';
+import { DexCreatePanel, DexEditPanel } from '@/components/dex/dex-link-panel';
 import InputError from '@/components/input-error';
 import LocationField, { recentSavedPlace } from '@/components/location-field';
 import MatchList from '@/components/match-list';
@@ -51,6 +52,7 @@ import type {
     ScanItemPrefill,
     ScanResponse,
 } from '@/types/diecast';
+import type { DexLinkState, DexPrefill, DexRef } from '@/types/dex';
 
 const COMMON_BRANDS = [
     'Hot Wheels',
@@ -111,6 +113,8 @@ type FormData = {
     sighting_price: string;
     tags: string[];
     ai_scanned: boolean;
+    // New diecast added from (or matched to) a dex entry.
+    catalog_item_id: number | null;
 };
 
 type Photo = { path: string; url: string };
@@ -169,6 +173,7 @@ function initialData(
         sighting_price: '',
         tags: diecast?.tags?.map((t) => t.name) ?? [],
         ai_scanned: diecast?.ai_scanned ?? false,
+        catalog_item_id: null,
     };
 }
 
@@ -229,6 +234,8 @@ export default function DiecastForm({
     scanItem,
     returnTo,
     priceChecks = [],
+    dexItem,
+    dex,
 }: {
     diecast?: Diecast;
     status?: DiecastStatus;
@@ -237,6 +244,10 @@ export default function DiecastForm({
     scanItem?: ScanItemPrefill | null;
     returnTo?: string;
     priceChecks?: PriceCheck[];
+    /** Adding a release picked in the Dex. */
+    dexItem?: DexPrefill | null;
+    /** Edit: the diecast's dex entry and suggestions. */
+    dex?: DexLinkState;
 }) {
     const prefill = scanItem?.fields ? fieldsFromScan(scanItem.fields) : null;
 
@@ -246,6 +257,20 @@ export default function DiecastForm({
         if (scanItem) {
             data.photos = [scanItem.photo_path];
             Object.assign(data, prefill?.next ?? {});
+        }
+
+        if (dexItem) {
+            const { fields } = dexItem;
+            Object.assign(data, {
+                name: fields.name,
+                brand: fields.brand,
+                series: fields.series ?? '',
+                collection_number: fields.collection_number,
+                year: fields.year ? String(fields.year) : '',
+                rarity: fields.rarity,
+                scale: fields.scale ?? data.scale,
+                catalog_item_id: dexItem.item_id,
+            });
         }
 
         // Just checked/spotted in a store (location taken < 3 h ago)? That's probably where it's from.
@@ -294,6 +319,14 @@ export default function DiecastForm({
     const [priceSource, setPriceSource] = useState(
         diecast?.market_value_source ?? null,
     );
+    const [dexChosen, setDexChosen] = useState<DexRef | null>(
+        dexItem ?? null,
+    );
+
+    function chooseDex(entry: DexRef | null) {
+        setDexChosen(entry);
+        setData('catalog_item_id', entry?.item_id ?? null);
+    }
     const cameraInput = useRef<HTMLInputElement>(null);
     const galleryInput = useRef<HTMLInputElement>(null);
 
@@ -719,6 +752,25 @@ export default function DiecastForm({
                 )}
                 <InputError message={errors.photos} />
                 <ScanFeedback scan={scan} />
+
+                {diecast && dex ? (
+                    <DexEditPanel
+                        diecastId={diecast.id}
+                        initial={dex}
+                        year={data.year}
+                        onYear={(year) => update('year', String(year))}
+                    />
+                ) : !diecast ? (
+                    <DexCreatePanel
+                        chosen={dexChosen}
+                        suggestion={
+                            scan.state === 'done' ? (scan.result.dex ?? null) : null
+                        }
+                        year={data.year}
+                        onChoose={chooseDex}
+                        onYear={(year) => update('year', String(year))}
+                    />
+                ) : null}
             </div>
 
             {/* Fields */}
@@ -1050,7 +1102,7 @@ export default function DiecastForm({
                         {processing && <Loader2 className="animate-spin" />}
                         {diecast ? 'Simpan perubahan' : 'Simpan'}
                     </Button>
-                    {!diecast && !scanItem && (
+                    {!diecast && !scanItem && !dexItem && (
                         <Button
                             type="button"
                             variant="secondary"

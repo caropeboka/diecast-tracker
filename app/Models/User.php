@@ -69,6 +69,14 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     }
 
     /**
+     * @return HasMany<Catalog, $this>
+     */
+    public function catalogs(): HasMany
+    {
+        return $this->hasMany(Catalog::class);
+    }
+
+    /**
      * Stores and places used before (bought there or spotted there), for autocomplete.
      *
      * @return array<int, string>

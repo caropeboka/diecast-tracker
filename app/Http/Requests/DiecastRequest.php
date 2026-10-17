@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Catalog;
 use App\Models\Diecast;
 use App\Services\SightingLog;
 use Illuminate\Contracts\Validation\ValidationRule;
@@ -48,6 +49,10 @@ class DiecastRequest extends FormRequest
             'tags' => ['array', 'max:20'],
             'tags.*' => ['string', 'max:50'],
             'scan_item_id' => ['nullable', 'integer'],
+            // Added from a dex entry: link it to that entry (only the user's own dex).
+            'catalog_item_id' => ['nullable', 'integer', Rule::exists('catalog_items', 'id')->where(
+                fn ($query) => $query->whereIn('catalog_id', Catalog::where('user_id', $this->user()?->id ?? 0)->select('id')),
+            )],
             // First "Ditemui" sighting, entered with a new spotted diecast.
             'sighting' => ['nullable', 'array'],
             ...SightingLog::rules('sighting.'),
@@ -61,7 +66,7 @@ class DiecastRequest extends FormRequest
      */
     public function diecastData(): array
     {
-        return collect($this->validated())->except(['photos', 'tags', 'scan_item_id', 'sighting'])->all();
+        return collect($this->validated())->except(['photos', 'tags', 'scan_item_id', 'sighting', 'catalog_item_id'])->all();
     }
 
     /**

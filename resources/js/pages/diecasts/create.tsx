@@ -7,17 +7,20 @@ import type {
     DiecastSuggestions,
     ScanItemPrefill,
 } from '@/types/diecast';
+import type { DexPrefill } from '@/types/dex';
 
 export default function CreateDiecast({
     suggestions,
     scanEnabled,
     status,
     scanItem,
+    dexItem,
 }: {
     suggestions: DiecastSuggestions;
     scanEnabled: boolean;
     status: DiecastStatus;
     scanItem: ScanItemPrefill | null;
+    dexItem: DexPrefill | null;
 }) {
     const returnTo = new URLSearchParams(window.location.search).get('return');
 
@@ -30,17 +33,26 @@ export default function CreateDiecast({
                     description={
                         scanItem
                             ? 'Data dari hasil scan. Periksa, lengkapi, lalu simpan.'
-                            : scanEnabled
+                            : dexItem
+                              ? `Data dari Dex (${dexItem.catalog} #${dexItem.number}). Tambahkan fotomu sendiri, lalu simpan.`
+                              : scanEnabled
                               ? 'Foto diecast-nya, biar AI yang isi datanya. Kamu tinggal cek dan simpan.'
                               : 'Isi data diecast kamu.'
                     }
                 />
                 <DiecastForm
-                    key={scanItem?.id ?? 'new'}
+                    key={
+                        scanItem
+                            ? `scan-${scanItem.id}`
+                            : dexItem
+                              ? `dex-${dexItem.item_id}-${status}`
+                              : 'new'
+                    }
                     suggestions={suggestions}
                     scanEnabled={scanEnabled}
                     status={status}
                     scanItem={scanItem}
+                    dexItem={dexItem}
                     returnTo={returnTo ?? undefined}
                 />
             </div>
