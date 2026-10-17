@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Catalog;
+use App\Services\Dex\CatalogProgress;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -88,6 +90,29 @@ class DashboardController extends Controller
                 ->get(),
             'wishlist' => $user->diecasts()->where('status', 'wishlist')->latest()->limit(5)->get(),
             'recent' => $user->diecasts()->whereIn('status', ['owned', 'sold'])->latest()->limit(6)->get(),
+            'dex' => $this->dex($request),
         ]);
+    }
+
+    /**
+     * The dex lists furthest along (seen share), for the dashboard's Dex panel.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function dex(Request $request): array
+    {
+        $counts = app(CatalogProgress::class)->perCatalog($request->user());
+
+        return $request->user()->catalogs()->get(['id', 'name'])
+            ->map(fn (Catalog $catalog) => [
+                'id' => $catalog->id,
+                'name' => $catalog->name,
+                ...($counts[$catalog->id] ?? ['total' => 0, 'seen' => 0, 'caught' => 0, 'wanted' => 0]),
+            ])
+            ->filter(fn (array $catalog) => $catalog['total'] > 0)
+            ->sortByDesc(fn (array $catalog) => $catalog['seen'] / $catalog['total'])
+            ->take(4)
+            ->values()
+            ->all();
     }
 }

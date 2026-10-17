@@ -3,6 +3,7 @@ import {
     ArrowDownRight,
     ArrowRight,
     ArrowUpRight,
+    BookMarked,
     Calendar,
     Camera,
     Car,
@@ -20,6 +21,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import BulkScanController from '@/actions/App/Http/Controllers/BulkScanController';
+import DexController from '@/actions/App/Http/Controllers/DexController';
 import DiecastController from '@/actions/App/Http/Controllers/DiecastController';
 import {
     BarList,
@@ -28,11 +30,13 @@ import {
     Panel,
     StatTile,
 } from '@/components/dashboard/charts';
+import { DexLegend, DexMeter } from '@/components/dex/dex-meter';
 import DiecastCard from '@/components/diecast-card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { dashboard } from '@/routes';
 import type { Auth } from '@/types';
+import type { DexCounts } from '@/types/dex';
 import {
     formatRupiah,
     formatRupiahCompact,
@@ -115,7 +119,9 @@ export default function Dashboard({
     showcase,
     wishlist,
     recent,
+    dex,
 }: {
+    dex: (DexCounts & { id: number; name: string })[];
     stats: Stats;
     completeness: Completeness;
     byBrand: (Count & { value: number | string })[];
@@ -457,6 +463,46 @@ export default function Dashboard({
                                 }
                             />
                         </div>
+
+                        {dex.length > 0 && (
+                            <Panel
+                                title="Dex"
+                                icon={<BookMarked className="size-4" />}
+                                action={
+                                    <Link
+                                        href={DexController.index()}
+                                        className="text-sm text-muted-foreground hover:text-foreground"
+                                    >
+                                        Semua →
+                                    </Link>
+                                }
+                            >
+                                <div className="grid gap-x-6 gap-y-4 md:grid-cols-2">
+                                    {dex.map((catalog) => (
+                                        <Link
+                                            key={catalog.id}
+                                            href={DexController.show(catalog.id)}
+                                            className="group block"
+                                        >
+                                            <p className="mb-1.5 truncate text-sm font-medium group-hover:underline">
+                                                {catalog.name}
+                                            </p>
+                                            <DexMeter
+                                                seen={catalog.seen}
+                                                caught={catalog.caught}
+                                                total={catalog.total}
+                                            />
+                                            <DexLegend
+                                                className="mt-1.5"
+                                                seen={catalog.seen}
+                                                caught={catalog.caught}
+                                                total={catalog.total}
+                                            />
+                                        </Link>
+                                    ))}
+                                </div>
+                            </Panel>
+                        )}
 
                         {/* Most valuable + data completeness */}
                         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
