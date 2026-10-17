@@ -97,7 +97,7 @@ class CollectionSpreadsheet
     public function import(User $user, string $path, string $extension): array
     {
         $reader = $extension === 'csv'
-            ? new CsvReader(new CsvOptions(FIELD_DELIMITER: $this->detectDelimiter($path)))
+            ? new CsvReader(new CsvOptions(FIELD_DELIMITER: self::detectDelimiter($path)))
             : new XlsxReader;
 
         $reader->open($path);
@@ -252,7 +252,10 @@ class CollectionSpreadsheet
         return is_numeric($normalized = str_replace(',', '.', $clean)) ? (float) $normalized : $value;
     }
 
-    private function detectDelimiter(string $path): string
+    /**
+     * Excel in Indonesian locale saves CSV with ";" — use whichever the header line uses more.
+     */
+    public static function detectDelimiter(string $path): string
     {
         $handle = fopen($path, 'r');
         $firstLine = (string) fgets($handle);
