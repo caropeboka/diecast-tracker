@@ -9,9 +9,6 @@ use Symfony\Component\HttpFoundation\Response;
 
 class HandleAppearance
 {
-    /** Visual styles from Settings → Appearance; the first is the default. */
-    public const STYLES = ['garage', 'showroom', 'neon'];
-
     /**
      * Handle an incoming request.
      *
@@ -19,10 +16,7 @@ class HandleAppearance
      */
     public function handle(Request $request, Closure $next): Response
     {
-        $style = $request->cookie('style');
-
         View::share('appearance', $request->cookie('appearance') ?? 'dark');
-        View::share('style', in_array($style, self::STYLES, true) ? $style : self::STYLES[0]);
 
         return $next($request);
     }

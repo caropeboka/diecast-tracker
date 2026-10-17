@@ -62,6 +62,7 @@
 
     /* Data-viz roles (validated palette, light + dark steps below) */
     --color-viz-bar: var(--viz-bar);
+    --color-viz-bar-soft: var(--viz-bar-soft);
     --color-viz-track: var(--viz-track);
     --color-viz-muted: var(--viz-muted);
     --color-viz-up: var(--viz-up);
@@ -120,6 +121,9 @@
     /* Single-series bars + meter track (same blue ramp) */
     --viz-bar: #2a78d6;
     --viz-track: #cde2fb;
+    /* Middle step of the same ramp (Dex "seen, not owned"). OKLab 50/50 of bar and track:
+       validated on the Garage surface — ΔE ≥ 15 from both neighbours; below 3:1 on the surface, so always labeled. */
+    --viz-bar-soft: color-mix(in oklab, var(--viz-bar) 50%, var(--viz-track));
     --viz-muted: #c3c2b7;
     /* Delta text: gain / loss */
     --viz-up: #006300;
@@ -180,10 +184,10 @@
 }
 
 /* ---------------------------------------------------------------------------
- * Visual styles ("Gaya tampilan"): <html data-style="garage|showroom|neon">.
+ * "Garage" style: racing orange on charcoal, condensed display face.
  * The brand/display tokens apply in both modes; the full surface palette is
  * dark-only (the app defaults to dark). Chart bar colors were validated for
- * lightness band + 3:1 contrast against each style's card surface.
+ * lightness band + 3:1 contrast against the card surface.
  * ------------------------------------------------------------------------- */
 :root {
     --brand: #ff6a1a;
@@ -197,28 +201,7 @@
     --page-texture: none;
 }
 
-[data-style='showroom'] {
-    --brand: #e3b341;
-    --brand-2: #f5d98b;
-    --brand-foreground: #1a1405;
-    --brand-glow: rgb(227 179 65 / 0.22);
-    --style-font-display: 'Fraunces', Georgia, serif;
-    --display-transform: none;
-    --display-tracking: -0.01em;
-}
-
-[data-style='neon'] {
-    --brand: #22d3ee;
-    --brand-2: #8b5cf6;
-    --brand-foreground: #03131a;
-    --brand-glow: rgb(34 211 238 / 0.25);
-    --style-font-display: 'Space Grotesk', var(--font-sans);
-    --display-transform: none;
-    --display-tracking: -0.02em;
-}
-
-.dark[data-style='garage'],
-.dark:not([data-style]) {
+.dark {
     --background: #0b0b0d;
     --foreground: #f4f1ec;
     --card: #131316;
@@ -252,74 +235,6 @@
         repeating-linear-gradient(-45deg, rgb(0 0 0 / 0.25) 0 2px, transparent 2px 6px);
     --viz-bar: #e8590c;
     --viz-track: #3d2012;
-}
-
-.dark[data-style='showroom'] {
-    --background: #070b18;
-    --foreground: #f3efe6;
-    --card: #0e1428;
-    --card-foreground: #f3efe6;
-    --popover: #111833;
-    --popover-foreground: #f3efe6;
-    --primary: #e3b341;
-    --primary-foreground: #1a1405;
-    --secondary: #151c33;
-    --secondary-foreground: #f3efe6;
-    --muted: #151c33;
-    --muted-foreground: #9aa3b8;
-    --accent: #1a2240;
-    --accent-foreground: #f3efe6;
-    --border: #1e2742;
-    --input: #232c4a;
-    --ring: #e3b341;
-    --radius: 0.875rem;
-    --sidebar: #090e1e;
-    --sidebar-foreground: #e6e2d8;
-    --sidebar-primary: #e3b341;
-    --sidebar-primary-foreground: #1a1405;
-    --sidebar-accent: #161d36;
-    --sidebar-accent-foreground: #ffffff;
-    --sidebar-border: #1a2240;
-    --sidebar-ring: #e3b341;
-    --card-edge: rgb(227 179 65 / 0.14);
-    --page-texture: radial-gradient(1200px 500px at 85% -10%, rgb(227 179 65 / 0.07), transparent 60%);
-    --viz-bar: #b8862b;
-    --viz-track: #322e31;
-}
-
-.dark[data-style='neon'] {
-    --background: #060608;
-    --foreground: #f2f4f8;
-    --card: #0e0e12;
-    --card-foreground: #f2f4f8;
-    --popover: #121217;
-    --popover-foreground: #f2f4f8;
-    --primary: #22d3ee;
-    --primary-foreground: #03131a;
-    --secondary: #17171d;
-    --secondary-foreground: #f2f4f8;
-    --muted: #17171d;
-    --muted-foreground: #8e93a3;
-    --accent: #1a1a23;
-    --accent-foreground: #f2f4f8;
-    --border: #22222b;
-    --input: #282831;
-    --ring: #22d3ee;
-    --radius: 0.75rem;
-    --sidebar: #09090c;
-    --sidebar-foreground: #e4e6ec;
-    --sidebar-primary: #22d3ee;
-    --sidebar-primary-foreground: #03131a;
-    --sidebar-accent: #15151c;
-    --sidebar-accent-foreground: #ffffff;
-    --sidebar-border: #1b1b23;
-    --sidebar-ring: #22d3ee;
-    --card-edge: rgb(139 92 246 / 0.22);
-    --page-texture:
-        radial-gradient(900px 420px at 10% -10%, rgb(34 211 238 / 0.08), transparent 60%),
-        radial-gradient(900px 420px at 95% 0%, rgb(139 92 246 / 0.09), transparent 60%);
-    --viz-bar: #0ea5c6;
-    --viz-track: #102f38;
 }
 
 @layer base {

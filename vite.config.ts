@@ -16,10 +16,8 @@ export default defineConfig({
                 bunny('Instrument Sans', {
                     weights: [400, 500, 600],
                 }),
-                // Display faces for the three visual styles (Settings → Appearance).
+                // Display face for headings (the "Garage" style).
                 bunny('Saira Condensed', { weights: [600, 700] }),
-                bunny('Fraunces', { weights: [500, 600] }),
-                bunny('Space Grotesk', { weights: [500, 600, 700] }),
             ],
         }),
         inertia(),

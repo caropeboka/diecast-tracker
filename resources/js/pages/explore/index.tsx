@@ -101,26 +101,16 @@ const describeCounts = (sightings: number, purchases: number) =>
         .filter(Boolean)
         .join(' · ');
 
-/** The style's brand color, for SVG markers (Leaflet needs a real color, not a class). */
+/** The brand color, for SVG markers (Leaflet needs a real color, not a class). */
 function useBrandColor() {
-    const [color, setColor] = useState('#ff6a1a');
-
-    useEffect(() => {
-        const read = () =>
-            setColor(
+    const [color] = useState(
+        () =>
+            (typeof document !== 'undefined' &&
                 getComputedStyle(document.documentElement)
                     .getPropertyValue('--brand')
-                    .trim() || '#ff6a1a',
-            );
-        read();
-
-        const observer = new MutationObserver(read);
-        observer.observe(document.documentElement, {
-            attributeFilter: ['data-style'],
-        });
-
-        return () => observer.disconnect();
-    }, []);
+                    .trim()) ||
+            '#ff6a1a',
+    );
 
     return color;
 }

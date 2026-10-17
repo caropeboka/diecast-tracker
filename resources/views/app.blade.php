@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" data-style="{{ $style ?? 'garage' }}" @class(['dark' => ($appearance ?? 'dark') == 'dark'])>
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" @class(['dark' => ($appearance ?? 'dark') == 'dark'])>
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -27,14 +27,6 @@
 
             html.dark {
                 background-color: #0b0b0d;
-            }
-
-            html.dark[data-style="showroom"] {
-                background-color: #070b18;
-            }
-
-            html.dark[data-style="neon"] {
-                background-color: #060608;
             }
         </style>
 
