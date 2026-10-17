@@ -108,6 +108,8 @@ export default function LocationPicker({
     const skipLookup = useRef(false);
     const lookupSeq = useRef(0);
     const lookupTimer = useRef<number | undefined>(undefined);
+    // The pin position (≈1 m) the current name belongs to.
+    const lookedUp = useRef<string | null>(null);
 
     function goTo(point: LatLng, { lookup = true } = {}) {
         if (!map) {
@@ -194,12 +196,24 @@ export default function LocationPicker({
 
     function handleMoveEnd(target: LeafletMap) {
         const c = target.getCenter();
+        const spot = `${c.lat.toFixed(5)},${c.lng.toFixed(5)}`;
         setCenter({ lat: c.lat, lng: c.lng });
         setMoving(false);
+
+        // Same spot (e.g. the map resized when the keyboard opened): keep the name we have or are fetching.
+        if (spot === lookedUp.current) {
+            return;
+        }
+
         window.clearTimeout(lookupTimer.current);
 
         if (skipLookup.current) {
             skipLookup.current = false;
+            lookedUp.current = spot;
+            // A lookup cancelled by this move must not leave "Mencari…" behind.
+            setLookup((current) =>
+                current.status === 'loading' ? { status: 'idle' } : current,
+            );
 
             return;
         }
@@ -208,6 +222,7 @@ export default function LocationPicker({
             return;
         }
 
+        lookedUp.current = spot;
         setLookup({ status: 'loading' });
 
         // Wait until the map settles: OpenStreetMap allows about one request per second.
